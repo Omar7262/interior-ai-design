@@ -83,7 +83,7 @@ form.addEventListener("submit", async (e) => {
   }
 
   form.reset();
-  setMsg("Thank you for joining the Home Designs AI newsletter \u2014 you're on the waitlist to get tips, tools and special discounts.", "ok");
+  setMsg("Thank you for joining the Interior AI Design newsletter \u2014 you're on the waitlist to get tips, tools and special discounts.", "ok");
   window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
   startRedirecting();
   const ok = await sendToFormspree(email, true);
