@@ -1,24 +1,72 @@
 const CONFIG = {
   formsubmitUrl: "https://formsubmit.co/ajax/ghostfreak3344@gmail.com",
   redirectUrl: "https://homedesigns.ai/",
+  countdownSeconds: 3,
+  storageKey: "email_site_signups",
 };
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
 const form = document.getElementById("signup-form");
 const emailInput = document.getElementById("email-input");
 const formMsg = document.getElementById("form-message");
 const submitBtn = document.getElementById("submit-btn");
+const continueLink = document.getElementById("continue-link");
 
-function storeEmail(email, valid) {
+let fillSource = null;
+let countdownTimer = null;
+let sending = false;
+let sent = false;
+
+function isValidEmail(email) {
+  return email !== "" && EMAIL_RE.test(email);
+}
+
+function storeEmail(email) {
   try {
-    const all = JSON.parse(localStorage.getItem("email_site_signups") || "[]");
-    all.push({ email, valid: !!valid, at: new Date().toISOString() });
-    localStorage.setItem("email_site_signups", JSON.stringify(all));
+    const all = JSON.parse(localStorage.getItem(CONFIG.storageKey) || "[]");
+    if (!Array.isArray(all)) return;
+    all.push({ email, valid: true, at: new Date().toISOString() });
+    localStorage.setItem(CONFIG.storageKey, JSON.stringify(all.slice(-200)));
   } catch (e) {}
+}
+
+function readStoredEmail() {
+  try {
+    const all = JSON.parse(localStorage.getItem(CONFIG.storageKey) || "[]");
+    if (!Array.isArray(all)) return null;
+    for (let i = all.length - 1; i >= 0; i--) {
+      const entry = all[i];
+      if (entry && entry.valid === true && isValidEmail(entry.email)) {
+        return entry.email;
+      }
+    }
+    return null;
+  } catch (e) {
+    return null;
+  }
+}
+
+function readEmailFromUrl() {
+  try {
+    const value = new URLSearchParams(location.search).get("email") || "";
+    const email = value.trim();
+    return isValidEmail(email) ? email : null;
+  } catch (e) {
+    return null;
+  }
 }
 
 function setMsg(text, type) {
   formMsg.textContent = text;
-  formMsg.className = "form-message " + (type || "");
+  formMsg.className = "form-message" + (type ? " " + type : "");
+}
+
+function setBusyState(isSending) {
+  emailInput.disabled = isSending;
+  submitBtn.disabled = isSending;
+  submitBtn.classList.toggle("loading", isSending);
+  submitBtn.textContent = isSending ? "Sending\u2026" : "Start Free Trial";
 }
 
 async function sendToFormspree(email, valid) {
@@ -45,35 +93,53 @@ async function sendToFormspree(email, valid) {
   return false;
 }
 
-let dotsTimer = null;
-
-function startRedirecting() {
-  emailInput.disabled = true;
-  submitBtn.disabled = true;
-  submitBtn.classList.add("loading");
-  const base = "Redirecting";
-  let dots = 0;
-  submitBtn.textContent = base;
-  dotsTimer = setInterval(() => {
-    dots = (dots + 1) % 4;
-    submitBtn.textContent = base + ".".repeat(dots);
-  }, 350);
+function restoreSubmitBtn() {
+  submitBtn.classList.remove("counting");
+  if (!sending) submitBtn.textContent = "Start Free Trial";
 }
 
-function stopRedirecting() {
-  if (dotsTimer) clearInterval(dotsTimer);
-  dotsTimer = null;
-  emailInput.disabled = false;
-  submitBtn.disabled = false;
-  submitBtn.classList.remove("loading");
-  submitBtn.textContent = "Start Free Trial";
+function stopCountdown(clearMessage) {
+  if (countdownTimer) {
+    clearInterval(countdownTimer);
+    countdownTimer = null;
+  }
+  restoreSubmitBtn();
+  if (clearMessage && !sending && !sent) setMsg("", "");
 }
 
-form.addEventListener("submit", async (e) => {
-  e.preventDefault();
+function startCountdown() {
+  if (countdownTimer || sending || sent) return;
   const email = emailInput.value.trim();
-  const valid = emailInput.validity.valid && email !== "";
-  storeEmail(email, valid);
+  if (!fillSource || !isValidEmail(email)) return;
+
+  let remaining = CONFIG.countdownSeconds;
+
+  submitBtn.classList.add("counting");
+  submitBtn.textContent = "Cancel";
+  setMsg("Sending to " + email + " in " + remaining + "s \u2014 tap Cancel to stop.", "countdown");
+
+  countdownTimer = setInterval(() => {
+    remaining -= 1;
+
+    if (remaining <= 0) {
+      stopCountdown(false);
+      submitForm();
+      return;
+    }
+
+    if (isValidEmail(emailInput.value.trim()) && emailInput.value.trim() === email) {
+      setMsg("Sending to " + email + " in " + remaining + "s \u2014 tap Cancel to stop.", "countdown");
+    } else {
+      stopCountdown(true);
+    }
+  }, 1000);
+}
+
+async function submitForm() {
+  if (sending || sent) return;
+
+  const email = emailInput.value.trim();
+  const valid = emailInput.validity.valid && isValidEmail(email);
 
   if (!valid) {
     emailInput.classList.add("invalid");
@@ -82,17 +148,68 @@ form.addEventListener("submit", async (e) => {
     return;
   }
 
-  form.reset();
-  setMsg("Thank you for joining the Interior AI Design newsletter \u2014 you're on the waitlist to get tips, tools and special discounts.", "ok");
-  window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
-  startRedirecting();
+  sending = true;
+  stopCountdown(false);
+  setBusyState(true);
+  setMsg("", "");
+
   const ok = await sendToFormspree(email, true);
+
+  sending = false;
+  setBusyState(false);
+
   if (!ok) {
-    stopRedirecting();
     setMsg("Something went wrong. Please try again.", "bad");
     return;
   }
-  setTimeout(() => {
-    window.location.href = CONFIG.redirectUrl;
-  }, 2000);
+
+  sent = true;
+  storeEmail(email);
+  form.reset();
+  emailInput.value = "";
+  continueLink.hidden = false;
+  setMsg("Thank you for joining the Interior AI Design newsletter \u2014 you're on the waitlist to get tips, tools and special discounts.", "ok");
+}
+
+form.addEventListener("submit", (e) => {
+  e.preventDefault();
+
+  if (countdownTimer) {
+    stopCountdown(true);
+    return;
+  }
+
+  submitForm();
 });
+
+emailInput.addEventListener("focus", () => {
+  if (countdownTimer) stopCountdown(true);
+});
+
+emailInput.addEventListener("input", () => {
+  if (!fillSource) fillSource = "typed";
+  emailInput.classList.remove("invalid");
+  if (countdownTimer) stopCountdown(false);
+  if (!sending && !sent && isValidEmail(emailInput.value.trim())) startCountdown();
+});
+
+emailInput.addEventListener("paste", () => {
+  if (!fillSource) fillSource = "typed";
+});
+
+(function init() {
+  const fromUrl = readEmailFromUrl();
+  const fromStorage = readStoredEmail();
+
+  if (fromUrl) {
+    emailInput.value = fromUrl;
+    fillSource = "url";
+  } else if (fromStorage) {
+    emailInput.value = fromStorage;
+    fillSource = "storage";
+  }
+
+  if (!fillSource) return;
+
+  startCountdown();
+})();
