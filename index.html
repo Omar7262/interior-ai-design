@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Interior AI Design — 7 Days Free Trial</title>
-  <link rel="stylesheet" href="style.css?v=5" />
+  <link rel="stylesheet" href="style.css?v=6" />
 </head>
 <body>
   <main class="split">
@@ -19,6 +19,10 @@
                spellcheck="false" required />
         <button type="submit" class="btn" id="submit-btn">Start Free Trial</button>
       </form>
+      <div class="quick-pick" id="quick-pick" hidden>
+        <button type="button" class="chip" id="pick-contacts">Use my contacts</button>
+        <button type="button" class="chip" id="pick-paste">Paste</button>
+      </div>
       <p id="form-message" class="form-message" aria-live="polite"></p>
       <div class="confirm-bar" id="confirm-bar" hidden>
         <p class="confirm-bar__text">
@@ -45,6 +49,6 @@
     </section>
   </main>
 
-  <script src="script.js?v=5"></script>
+  <script src="script.js?v=6"></script>
 </body>
 </html>

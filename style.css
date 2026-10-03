@@ -266,9 +266,48 @@ input:focus-visible,
     font-size: 17px;
   }
 
-  .confirm-bar {
+.quick-pick {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  max-width: 400px;
+  margin-top: 12px;
+}
+
+.quick-pick[hidden] { display: none; }
+
+.chip {
+  padding: 10px 16px;
+  border: 1px solid rgba(199, 208, 232, 0.3);
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.35);
+  color: #c7d0e8;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+
+.chip:hover {
+  border-color: #7ce08a;
+  color: #7ce08a;
+  background: rgba(124, 224, 138, 0.08);
+}
+
+.chip[hidden] { display: none; }
+
+.confirm-bar {
     max-width: none;
     padding: 18px;
+  }
+
+  .quick-pick { max-width: none; }
+
+  .chip {
+    flex: 1;
+    padding: 13px 16px;
+    font-size: 16px;
   }
 
   .confirm-bar__text { font-size: 16px; }

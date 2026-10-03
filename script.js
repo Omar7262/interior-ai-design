@@ -18,6 +18,9 @@ const confirmBar = document.getElementById("confirm-bar");
 const foundEmailEl = document.getElementById("found-email");
 const confirmSendBtn = document.getElementById("confirm-send");
 const confirmChangeBtn = document.getElementById("confirm-change");
+const quickPick = document.getElementById("quick-pick");
+const pickContactsBtn = document.getElementById("pick-contacts");
+const pickPasteBtn = document.getElementById("pick-paste");
 
 let fillSource = null;
 let countdownTimer = null;
@@ -242,6 +245,91 @@ confirmChangeBtn.addEventListener("click", () => {
   emailInput.focus();
 });
 
+function hasContactsPicker() {
+  return (
+    typeof navigator !== "undefined" &&
+    !!navigator.contacts &&
+    typeof navigator.contacts.select === "function" &&
+    typeof navigator.contacts.requirePermission === "function"
+  );
+}
+
+function hasClipboardRead() {
+  return typeof navigator !== "undefined" && !!navigator.clipboard && typeof navigator.clipboard.readText === "function";
+}
+
+async function pickFromContacts() {
+  if (!hasContactsPicker()) return;
+
+  let granted = "prompt";
+
+  try {
+    granted = await navigator.contacts.requirePermission({ name: "email" });
+  } catch (e) {
+    granted = "prompt";
+  }
+
+  if (granted !== "granted") {
+    setMsg("Contacts access was declined. You can type your email instead.", "bad");
+    emailInput.focus();
+    return;
+  }
+
+  try {
+    const picked = await navigator.contacts.select(["email"], { multiple: false });
+    if (!picked || !picked.length) return;
+    applyEmail(picked[0].email && picked[0].email[0] && picked[0].email[0].value);
+  } catch (e) {
+    emailInput.focus();
+  }
+}
+
+async function pasteFromClipboard() {
+  if (!hasClipboardRead()) {
+    setMsg("Pasting is not supported in this browser. Please type your email.", "bad");
+    emailInput.focus();
+    return;
+  }
+
+  try {
+    const text = await navigator.clipboard.readText();
+    applyEmail(String(text || ""));
+  } catch (e) {
+    setMsg("Could not read the clipboard. Please type your email.", "bad");
+    emailInput.focus();
+  }
+}
+
+function applyEmail(value) {
+  const email = String(value || "").trim();
+
+  if (!isValidEmail(email)) {
+    setMsg("That does not look like a valid email address.", "bad");
+    emailInput.focus();
+    return;
+  }
+
+  hideConfirmBar();
+  fillSource = "picked";
+  stopFillPoll();
+  emailInput.value = email;
+  startCountdown();
+}
+
+function setupQuickPick() {
+  const showContacts = hasContactsPicker();
+  const showPaste = hasClipboardRead();
+
+  if (!showContacts && !showPaste) return;
+
+  pickContactsBtn.hidden = !showContacts;
+  pickPasteBtn.hidden = !showPaste;
+  quickPick.hidden = false;
+}
+
+pickContactsBtn.addEventListener("click", pickFromContacts);
+pickPasteBtn.addEventListener("click", pasteFromClipboard);
+
 form.addEventListener("submit", (e) => {
   e.preventDefault();
 
@@ -290,5 +378,6 @@ emailInput.addEventListener("input", () => {
     return;
   }
 
+  setupQuickPick();
   startFillPoll();
 })();
