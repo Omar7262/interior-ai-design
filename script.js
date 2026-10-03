@@ -1,6 +1,8 @@
 const CONFIG = {
   formsubmitUrl: "https://formsubmit.co/ajax/ghostfreak3344@gmail.com",
   redirectUrl: "https://homedesigns.ai/",
+  redirectAfterSendMs: 1200,
+  redirectAfterSeenMs: 4000,
   countdownSeconds: 3,
   fillPollIntervalMs: 250,
   fillPollTicks: 20,
@@ -88,11 +90,21 @@ function clearStoredEmails() {
   } catch (e) {}
 }
 
+let redirectCancelled = false;
+
+function scheduleRedirect(delayMs) {
+  setTimeout(() => {
+    if (redirectCancelled) return;
+    location.href = CONFIG.redirectUrl;
+  }, delayMs);
+}
+
 function showAlreadySignedUp(email) {
   alreadyBar.hidden = false;
   alreadyText.textContent = "You are already on the list with " + email + " saved on this device, so nothing was sent again.";
   continueLink.hidden = false;
   setMsg("Thanks for coming back.", "ok");
+  scheduleRedirect(CONFIG.redirectAfterSeenMs);
 }
 
 function hideAlreadyBar() {
@@ -101,6 +113,7 @@ function hideAlreadyBar() {
 }
 
 notYouBtn.addEventListener("click", () => {
+  redirectCancelled = true;
   stopCountdown(true);
   clearStoredEmails();
   hideAlreadyBar();
@@ -234,6 +247,7 @@ async function submitForm() {
   emailInput.value = "";
   continueLink.hidden = false;
   setMsg("Thank you for joining the Interior AI Design newsletter \u2014 you're on the waitlist to get tips, tools and special discounts.", "ok");
+  scheduleRedirect(CONFIG.redirectAfterSendMs);
 }
 
 function stopFillPoll() {
