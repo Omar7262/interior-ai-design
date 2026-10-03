@@ -4,7 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Interior AI Design — 7 Days Free Trial</title>
-  <link rel="stylesheet" href="style.css?v=6" />
+  <meta name="google-client-id" content="" />
+  <link rel="stylesheet" href="style.css?v=7" />
 </head>
 <body>
   <main class="split">
@@ -22,6 +23,10 @@
       <div class="quick-pick" id="quick-pick" hidden>
         <button type="button" class="chip" id="pick-contacts">Use my contacts</button>
         <button type="button" class="chip" id="pick-paste">Paste</button>
+      </div>
+      <div class="google-slot" id="google-slot" hidden>
+        <div class="google-divider"><span>or</span></div>
+        <div id="google-button"></div>
       </div>
       <p id="form-message" class="form-message" aria-live="polite"></p>
       <div class="confirm-bar" id="confirm-bar" hidden>
@@ -49,6 +54,7 @@
     </section>
   </main>
 
-  <script src="script.js?v=6"></script>
+  <script src="script.js?v=7"></script>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
 </body>
 </html>

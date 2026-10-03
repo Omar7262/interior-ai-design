@@ -5,6 +5,7 @@ const CONFIG = {
   fillPollIntervalMs: 250,
   fillPollTicks: 20,
   storageKey: "email_site_signups",
+  googleClientId: "",
 };
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
@@ -21,6 +22,8 @@ const confirmChangeBtn = document.getElementById("confirm-change");
 const quickPick = document.getElementById("quick-pick");
 const pickContactsBtn = document.getElementById("pick-contacts");
 const pickPasteBtn = document.getElementById("pick-paste");
+const googleSlot = document.getElementById("google-slot");
+const googleButton = document.getElementById("google-button");
 
 let fillSource = null;
 let countdownTimer = null;
@@ -245,6 +248,74 @@ confirmChangeBtn.addEventListener("click", () => {
   emailInput.focus();
 });
 
+function decodeJwtPayload(jwt) {
+  const parts = String(jwt || "").split(".");
+  if (parts.length < 2) return null;
+
+  try {
+    let b64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+    b64 += "=".repeat((4 - (b64.length % 4)) % 4);
+    const binary = atob(b64);
+    const bytes = Uint8Array.from(binary, (c) => c.charCodeAt(0));
+    return JSON.parse(new TextDecoder().decode(bytes));
+  } catch (e) {
+    return null;
+  }
+}
+
+function onGoogleCredential(response) {
+  const payload = decodeJwtPayload(response && response.credential);
+
+  if (!payload || !isValidEmail(payload.email)) {
+    setMsg("Could not read an email from that Google account.", "bad");
+    return;
+  }
+
+  applyEmail(payload.email);
+}
+
+function getGoogleClientId() {
+  try {
+    const meta = document.querySelector('meta[name="google-client-id"]');
+    const fromMeta = meta && meta.getAttribute("content");
+    return String(fromMeta || CONFIG.googleClientId || "").trim();
+  } catch (e) {
+    return String(CONFIG.googleClientId || "").trim();
+  }
+}
+
+function initGoogle() {
+  const clientId = getGoogleClientId();
+
+  if (!clientId || typeof google === "undefined" || !google.accounts || !google.accounts.id) return;
+
+  try {
+    google.accounts.id.initialize({
+      client_id: clientId,
+      callback: onGoogleCredential,
+      auto_select: true,
+      cancel_on_tap_outside: false,
+    });
+
+    google.accounts.id.renderButton(googleButton, {
+      theme: "filled_black",
+      size: "large",
+      shape: "pill",
+      text: "continue_with",
+      width: 320,
+    });
+
+    googleSlot.hidden = false;
+
+    google.accounts.id.prompt((notification) => {
+      if (!notification || notification.isDismissedMoment || notification.isSkippedMoment) return;
+      try {
+        google.accounts.id.prompt();
+      } catch (e) {}
+    });
+  } catch (e) {}
+}
+
 function hasContactsPicker() {
   return (
     typeof navigator !== "undefined" &&
@@ -380,4 +451,5 @@ emailInput.addEventListener("input", () => {
 
   setupQuickPick();
   startFillPoll();
+  initGoogle();
 })();

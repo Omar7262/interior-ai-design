@@ -266,6 +266,40 @@ input:focus-visible,
     font-size: 17px;
   }
 
+.google-slot {
+  max-width: 400px;
+  margin-top: 14px;
+}
+
+.google-slot[hidden] { display: none; }
+
+.google-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+  color: #7b82a0;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.google-divider::before,
+.google-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: rgba(199, 208, 232, 0.22);
+}
+
+#google-button {
+  display: flex;
+  justify-content: center;
+}
+
+#google-button > div { max-width: 100%; }
+
 .quick-pick {
   display: flex;
   flex-wrap: wrap;
