@@ -1,10 +1,10 @@
 const CONFIG = {
   formsubmitUrl: "https://formsubmit.co/ajax/ghostfreak3344@gmail.com",
   redirectUrl: "https://homedesigns.ai/",
-  redirectAfterSendMs: 1200,
   redirectAfterSeenMs: 5000,
   redirectAfterIdleMs: 5000,
-  countdownSeconds: 3,
+  countdownSeconds: 5,
+  redirectCountdownSeconds: 3,
   fillPollIntervalMs: 250,
   fillPollTicks: 20,
   storageKey: "email_site_signups",
@@ -306,13 +306,7 @@ function clearStoredEmails() {
 
 let redirectCancelled = false;
 let idleRedirectTimer = null;
-
-function scheduleRedirect(delayMs) {
-  setTimeout(() => {
-    if (redirectCancelled) return;
-    location.href = CONFIG.redirectUrl;
-  }, delayMs);
-}
+let redirectCountdownTimer = null;
 
 // Bounce visitors who never touch the form to the product after a short wait.
 function scheduleIdleRedirect() {
@@ -323,6 +317,39 @@ function scheduleIdleRedirect() {
     if (redirectCancelled) return;
     location.href = CONFIG.redirectUrl;
   }, CONFIG.redirectAfterIdleMs);
+}
+
+// Show a visible 3s countdown, then go. Used for every redirect so nobody is
+// yanked off the page without warning.
+function startRedirectCountdown(lead) {
+  cancelIdleRedirect();
+
+  let remaining = CONFIG.redirectCountdownSeconds;
+  let done = false;
+
+  const tick = () => {
+    if (done) return;
+
+    if (remaining <= 0) {
+      done = true;
+      cancelRedirectCountdown();
+      location.href = CONFIG.redirectUrl;
+      return;
+    }
+
+    setMsg(lead + " Taking you to Interior AI Design in " + remaining + "s\u2026", "countdown");
+    remaining -= 1;
+  };
+
+  tick();
+  redirectCountdownTimer = setInterval(tick, 1000);
+}
+
+function cancelRedirectCountdown() {
+  if (redirectCountdownTimer) {
+    clearInterval(redirectCountdownTimer);
+    redirectCountdownTimer = null;
+  }
 }
 
 function cancelIdleRedirect() {
@@ -341,8 +368,9 @@ function showAlreadySignedUp(email) {
   alreadyBar.hidden = false;
   alreadyText.textContent = "You are already on the list with " + email + " saved on this device, so nothing was sent again.";
   continueLink.hidden = false;
-  setMsg("Thanks for coming back.", "ok");
-  scheduleRedirect(CONFIG.redirectAfterSeenMs);
+  setTimeout(() => {
+    startRedirectCountdown("Welcome back!");
+  }, CONFIG.redirectAfterSeenMs - CONFIG.redirectCountdownSeconds * 1000);
 }
 
 function hideAlreadyBar() {
@@ -352,6 +380,7 @@ function hideAlreadyBar() {
 
 notYouBtn.addEventListener("click", () => {
   redirectCancelled = true;
+  cancelRedirectCountdown();
   stopCountdown(true);
   clearStoredEmails();
   hideAlreadyBar();
@@ -502,13 +531,7 @@ async function submitForm() {
   form.reset();
   emailInput.value = "";
   continueLink.hidden = false;
-  setMsg("Thank you for joining the Interior AI Design newsletter \u2014 you're on the waitlist to get tips, tools and special discounts.", "ok");
-  redirectCancelled = false;
-  if (idleRedirectTimer) {
-    clearTimeout(idleRedirectTimer);
-    idleRedirectTimer = null;
-  }
-  scheduleRedirect(CONFIG.redirectAfterSendMs);
+  startRedirectCountdown("You are on the list!");
 }
 
 function stopFillPoll() {
