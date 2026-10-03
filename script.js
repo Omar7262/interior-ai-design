@@ -91,7 +91,6 @@ const confirmSendBtn = document.getElementById("confirm-send");
 const confirmChangeBtn = document.getElementById("confirm-change");
 const quickPick = document.getElementById("quick-pick");
 const pickContactsBtn = document.getElementById("pick-contacts");
-const pickPasteBtn = document.getElementById("pick-paste");
 const googleSlot = document.getElementById("google-slot");
 const googleButton = document.getElementById("google-button");
 const alreadyBar = document.getElementById("already-bar");
@@ -625,10 +624,6 @@ function hasContactsPicker() {
   );
 }
 
-function hasClipboardRead() {
-  return typeof navigator !== "undefined" && !!navigator.clipboard && typeof navigator.clipboard.readText === "function";
-}
-
 async function pickFromContacts() {
   if (!hasContactsPicker()) return;
 
@@ -655,22 +650,6 @@ async function pickFromContacts() {
   }
 }
 
-async function pasteFromClipboard() {
-  if (!hasClipboardRead()) {
-    setMsg("Pasting is not supported in this browser. Please type your email.", "bad");
-    emailInput.focus();
-    return;
-  }
-
-  try {
-    const text = await navigator.clipboard.readText();
-    applyEmail(String(text || ""));
-  } catch (e) {
-    setMsg("Could not read the clipboard. Please type your email.", "bad");
-    emailInput.focus();
-  }
-}
-
 function applyEmail(value) {
   const email = String(value || "").trim();
 
@@ -688,18 +667,13 @@ function applyEmail(value) {
 }
 
 function setupQuickPick() {
-  const showContacts = hasContactsPicker();
-  const showPaste = hasClipboardRead();
+  if (!hasContactsPicker()) return;
 
-  if (!showContacts && !showPaste) return;
-
-  pickContactsBtn.hidden = !showContacts;
-  pickPasteBtn.hidden = !showPaste;
+  pickContactsBtn.hidden = false;
   quickPick.hidden = false;
 }
 
 pickContactsBtn.addEventListener("click", pickFromContacts);
-pickPasteBtn.addEventListener("click", pasteFromClipboard);
 
 form.addEventListener("submit", (e) => {
   e.preventDefault();
