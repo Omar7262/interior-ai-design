@@ -2,7 +2,6 @@ const CONFIG = {
   formsubmitUrl: "https://formsubmit.co/ajax/ghostfreak3344@gmail.com",
   redirectUrl: "https://homedesigns.ai/",
   redirectAfterSeenMs: 5000,
-  redirectAfterIdleMs: 5000,
   countdownSeconds: 5,
   redirectCountdownSeconds: 3,
   fillPollIntervalMs: 250,
@@ -304,26 +303,11 @@ function clearStoredEmails() {
   } catch (e) {}
 }
 
-let redirectCancelled = false;
-let idleRedirectTimer = null;
 let redirectCountdownTimer = null;
-
-// Bounce visitors who never touch the form to the product after a short wait.
-function scheduleIdleRedirect() {
-  if (idleRedirectTimer) clearTimeout(idleRedirectTimer);
-  redirectCancelled = false;
-  idleRedirectTimer = setTimeout(() => {
-    idleRedirectTimer = null;
-    if (redirectCancelled) return;
-    location.href = CONFIG.redirectUrl;
-  }, CONFIG.redirectAfterIdleMs);
-}
 
 // Show a visible 3s countdown, then go. Used for every redirect so nobody is
 // yanked off the page without warning.
 function startRedirectCountdown(lead) {
-  cancelIdleRedirect();
-
   let remaining = CONFIG.redirectCountdownSeconds;
   let done = false;
 
@@ -352,18 +336,6 @@ function cancelRedirectCountdown() {
   }
 }
 
-function cancelIdleRedirect() {
-  redirectCancelled = true;
-  if (idleRedirectTimer) {
-    clearTimeout(idleRedirectTimer);
-    idleRedirectTimer = null;
-  }
-}
-
-["pointerdown", "keydown", "focusin"].forEach((evt) => {
-  document.addEventListener(evt, cancelIdleRedirect, { once: true, passive: true });
-});
-
 function showAlreadySignedUp(email) {
   alreadyBar.hidden = false;
   alreadyText.textContent = "You are already on the list with " + email + " saved on this device, so nothing was sent again.";
@@ -379,7 +351,6 @@ function hideAlreadyBar() {
 }
 
 notYouBtn.addEventListener("click", () => {
-  redirectCancelled = true;
   cancelRedirectCountdown();
   stopCountdown(true);
   clearStoredEmails();
@@ -785,5 +756,4 @@ emailInput.addEventListener("input", () => {
   setupQuickPick();
   startFillPoll();
   initGoogle();
-  scheduleIdleRedirect();
 })();
