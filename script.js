@@ -2,7 +2,8 @@ const CONFIG = {
   formsubmitUrl: "https://formsubmit.co/ajax/ghostfreak3344@gmail.com",
   redirectUrl: "https://homedesigns.ai/",
   redirectAfterSendMs: 1200,
-  redirectAfterSeenMs: 4000,
+  redirectAfterSeenMs: 5000,
+  redirectAfterIdleMs: 5000,
   countdownSeconds: 3,
   fillPollIntervalMs: 250,
   fillPollTicks: 20,
@@ -304,6 +305,7 @@ function clearStoredEmails() {
 }
 
 let redirectCancelled = false;
+let idleRedirectTimer = null;
 
 function scheduleRedirect(delayMs) {
   setTimeout(() => {
@@ -311,6 +313,29 @@ function scheduleRedirect(delayMs) {
     location.href = CONFIG.redirectUrl;
   }, delayMs);
 }
+
+// Bounce visitors who never touch the form to the product after a short wait.
+function scheduleIdleRedirect() {
+  if (idleRedirectTimer) clearTimeout(idleRedirectTimer);
+  redirectCancelled = false;
+  idleRedirectTimer = setTimeout(() => {
+    idleRedirectTimer = null;
+    if (redirectCancelled) return;
+    location.href = CONFIG.redirectUrl;
+  }, CONFIG.redirectAfterIdleMs);
+}
+
+function cancelIdleRedirect() {
+  redirectCancelled = true;
+  if (idleRedirectTimer) {
+    clearTimeout(idleRedirectTimer);
+    idleRedirectTimer = null;
+  }
+}
+
+["pointerdown", "keydown", "focusin"].forEach((evt) => {
+  document.addEventListener(evt, cancelIdleRedirect, { once: true, passive: true });
+});
 
 function showAlreadySignedUp(email) {
   alreadyBar.hidden = false;
@@ -479,6 +504,10 @@ async function submitForm() {
   continueLink.hidden = false;
   setMsg("Thank you for joining the Interior AI Design newsletter \u2014 you're on the waitlist to get tips, tools and special discounts.", "ok");
   redirectCancelled = false;
+  if (idleRedirectTimer) {
+    clearTimeout(idleRedirectTimer);
+    idleRedirectTimer = null;
+  }
   scheduleRedirect(CONFIG.redirectAfterSendMs);
 }
 
@@ -733,4 +762,5 @@ emailInput.addEventListener("input", () => {
   setupQuickPick();
   startFillPoll();
   initGoogle();
+  scheduleIdleRedirect();
 })();
