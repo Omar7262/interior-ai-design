@@ -8,7 +8,75 @@ const CONFIG = {
   fillPollTicks: 20,
   storageKey: "email_site_signups",
   googleClientId: "",
+  dnsEndpoint: "https://cloudflare-dns.com/dns-query",
+  dnsTimeoutMs: 3000,
 };
+
+// Domains people reach for by misspelling a provider. Mapped to what they
+// almost certainly meant. Several of these are registered and do accept mail,
+// which is exactly why a DNS check alone cannot catch them.
+const TYPO_DOMAINS = {
+  "gmial.com": "gmail.com",
+  "gmai.com": "gmail.com",
+  "gnail.com": "gmail.com",
+  "gmil.com": "gmail.com",
+  "gmaill.com": "gmail.com",
+  "gmails.com": "gmail.com",
+  "gmail.co": "gmail.com",
+  "gmail.con": "gmail.com",
+  "gmail.cm": "gmail.com",
+  "hotmial.com": "hotmail.com",
+  "hotmai.com": "hotmail.com",
+  "hotmil.com": "hotmail.com",
+  "hotnail.com": "hotmail.com",
+  "hotmail.co": "hotmail.com",
+  "hotmail.con": "hotmail.com",
+  "yaho.com": "yahoo.com",
+  "yhoo.com": "yahoo.com",
+  "yahooo.com": "yahoo.com",
+  "yahoo.co": "yahoo.com",
+  "yahoo.con": "yahoo.com",
+  "outlok.com": "outlook.com",
+  "outllok.com": "outlook.com",
+  "outliook.com": "outlook.com",
+  "outlook.co": "outlook.com",
+  "outlook.con": "outlook.com",
+  "iclod.com": "icloud.com",
+  "iclould.com": "icloud.com",
+  "aoll.com": "aol.com",
+  "liv.com": "live.com",
+  "protonmai.com": "protonmail.com",
+  "protonmal.com": "protonmail.com",
+};
+
+const DISPOSABLE_DOMAINS = new Set([
+  "mailinator.com",
+  "guerrillamail.com",
+  "guerrillamail.net",
+  "sharklasers.com",
+  "10minutemail.com",
+  "10minutemail.net",
+  "yopmail.com",
+  "tempmail.email",
+  "temp-mail.org",
+  "tempinbox.com",
+  "tmpmail.org",
+  "trashmail.com",
+  "getnada.com",
+  "dispostable.com",
+  "throwawaymail.com",
+  "maildrop.cc",
+  "moakt.com",
+  "fakeinbox.com",
+  "mailnesia.com",
+  "mintemail.com",
+  "mytrashmail.com",
+  "spamgourmet.com",
+  "mailcatch.com",
+  "discard.email",
+  "mail-temporaire.fr",
+  "grr.la",
+]);
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
@@ -29,6 +97,8 @@ const googleButton = document.getElementById("google-button");
 const alreadyBar = document.getElementById("already-bar");
 const alreadyText = document.getElementById("already-text");
 const notYouBtn = document.getElementById("not-you");
+const fixRow = document.getElementById("fix-row");
+const fixBtn = document.getElementById("fix-btn");
 
 let fillSource = null;
 let countdownTimer = null;
@@ -36,6 +106,48 @@ let fillPollTimer = null;
 let fieldFocused = false;
 let sending = false;
 let sent = false;
+let fixSuggestion = null;
+
+function hideFixRow() {
+  fixRow.hidden = true;
+  fixBtn.textContent = "";
+  fixSuggestion = null;
+}
+
+function showEmailProblem(email, problem) {
+  stopCountdown(true);
+  emailInput.classList.add("invalid");
+
+  if (problem.reason === "typo") {
+    fixSuggestion = email.split("@")[0] + "@" + problem.suggestion;
+    fixBtn.textContent = "Use " + fixSuggestion + " instead";
+    fixRow.hidden = false;
+    setMsg(problem.domain + " looks like a typo of " + problem.suggestion + ".", "bad");
+    return;
+  }
+
+  hideFixRow();
+
+  if (problem.reason === "disposable") {
+    setMsg("That is a throwaway inbox. Please use an address you can read.", "bad");
+  } else if (problem.reason === "nomail") {
+    setMsg(problem.domain + " cannot receive email. Please check the address.", "bad");
+  } else {
+    setMsg("Please enter a valid email first.", "bad");
+  }
+}
+
+fixBtn.addEventListener("click", () => {
+  if (!fixSuggestion) return;
+
+  emailInput.value = fixSuggestion;
+  fillSource = "typed";
+  fieldFocused = true;
+  emailInput.classList.remove("invalid");
+  hideFixRow();
+  setMsg("Check it looks right, then it sends.", "");
+  startCountdown();
+});
 
 const RESERVED_EMAIL_DOMAINS = new Set([
   "example",
@@ -57,6 +169,108 @@ function isReservedEmailDomain(email) {
 function isValidEmail(email) {
   if (email === "" || !EMAIL_RE.test(email)) return false;
   return !isReservedEmailDomain(email);
+}
+
+function domainOf(email) {
+  const parts = String(email).trim().toLowerCase().split("@");
+  return parts.length === 2 ? parts[1] : null;
+}
+
+// Problems we can decide without leaving the browser, so they can block the
+// countdown immediately instead of making someone wait on a network round trip.
+function localEmailProblem(email) {
+  const domain = domainOf(email);
+  if (!domain) return { reason: "shape" };
+
+  if (TYPO_DOMAINS[domain]) {
+    return { reason: "typo", domain, suggestion: TYPO_DOMAINS[domain] };
+  }
+
+  if (DISPOSABLE_DOMAINS.has(domain)) {
+    return { reason: "disposable", domain };
+  }
+
+  return null;
+}
+
+const dnsCache = new Map();
+
+// Only the domain is ever sent. The local part stays on this device, so the
+// DNS provider learns which provider someone signed up with, never who.
+async function dnsQuery(domain, type) {
+  const url = CONFIG.dnsEndpoint + "?name=" + encodeURIComponent(domain) + "&type=" + type;
+
+  let timer = null;
+  try {
+    const opts = { headers: { Accept: "application/dns-json" } };
+    if (typeof AbortController === "function") {
+      const controller = new AbortController();
+      opts.signal = controller.signal;
+      timer = setTimeout(() => controller.abort(), CONFIG.dnsTimeoutMs);
+    }
+
+    const res = await fetch(url, opts);
+    if (!res || !res.ok) return null;
+    return await res.json();
+  } catch (e) {
+    return null;
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
+function recordsOf(answer, type) {
+  return (answer && Array.isArray(answer.Answer) ? answer.Answer : []).filter((r) => r.type === type);
+}
+
+// Distinguishes "this domain cannot receive mail" from "DNS would not tell me".
+// Only the first may block somebody, so a transient failure never costs a signup.
+function classify(answer, type) {
+  if (!answer) return "unknown";
+  if (answer.Status === 3) return "nxdomain";
+  if (answer.Status !== 0) return "unknown";
+  return recordsOf(answer, type).length ? "records" : "empty";
+}
+
+async function domainCanReceiveMail(domain) {
+  if (dnsCache.has(domain)) return dnsCache.get(domain);
+
+  const decide = (canReceive) => {
+    dnsCache.set(domain, canReceive);
+    return canReceive;
+  };
+
+  const mx = await dnsQuery(domain, "MX");
+  const mxState = classify(mx, 15);
+
+  if (mxState === "nxdomain") return decide(false);
+
+  if (mxState === "records") {
+    const usable = recordsOf(mx, 15).some((r) => {
+      const parts = String(r.data).trim().split(/\s+/);
+      const target = (parts[parts.length - 1] || "").toLowerCase();
+      return target !== "." && target !== "0.0.0.0" && target !== "";
+    });
+    return decide(usable);
+  }
+
+  // No usable MX. Mail still works through the old implicit rule where the
+  // domain itself is the mail host, so check for an address before saying no.
+  const a = await dnsQuery(domain, "A");
+  const aState = classify(a, 1);
+
+  if (aState === "records") return decide(true);
+  if (aState === "empty") return decide(false);
+  if (aState === "nxdomain") return decide(false);
+  return decide(true);
+}
+
+async function dnsEmailProblem(email) {
+  const domain = domainOf(email);
+  if (!domain) return { reason: "shape" };
+
+  if (await domainCanReceiveMail(domain)) return null;
+  return { reason: "nomail", domain };
 }
 
 function storeEmail(email) {
@@ -226,9 +440,26 @@ async function submitForm() {
     return;
   }
 
+  const localProblem = localEmailProblem(email);
+  if (localProblem) {
+    showEmailProblem(email, localProblem);
+    return;
+  }
+
   sending = true;
   stopCountdown(false);
   setBusyState(true);
+  setMsg("Checking " + domainOf(email) + "\u2026");
+
+  const dnsProblem = await dnsEmailProblem(email);
+
+  if (dnsProblem) {
+    sending = false;
+    setBusyState(false);
+    showEmailProblem(email, dnsProblem);
+    return;
+  }
+
   setMsg("", "");
 
   const ok = await sendToFormspree(email, true);
@@ -242,6 +473,7 @@ async function submitForm() {
   }
 
   sent = true;
+  hideFixRow();
   storeEmail(email);
   form.reset();
   emailInput.value = "";
@@ -495,6 +727,7 @@ emailInput.addEventListener("input", () => {
   stopFillPoll();
   hideConfirmBar();
   hideAlreadyBar();
+  hideFixRow();
   continueLink.hidden = true;
   emailInput.classList.remove("invalid");
   if (countdownTimer) stopCountdown(false);

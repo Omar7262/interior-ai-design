@@ -122,6 +122,17 @@ input.invalid { border-color: #ff8f8f; box-shadow: 0 0 0 4px rgba(255, 143, 143,
   border: 1px solid #ffa3a3;
 }
 
+.fix-row {
+  max-width: 400px;
+  margin-top: 12px;
+}
+
+.fix-row[hidden] { display: none; }
+
+.fix-row .chip {
+  cursor: pointer;
+}
+
 .sr-only {
   position: absolute;
   width: 1px;
