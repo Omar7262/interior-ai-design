@@ -300,6 +300,25 @@ input:focus-visible,
 
 #google-button > div { max-width: 100%; }
 
+.already-bar {
+  max-width: 400px;
+  margin-top: 14px;
+  padding: 16px 18px;
+  border: 1px solid rgba(199, 208, 232, 0.25);
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.35);
+}
+
+.already-bar[hidden] { display: none; }
+
+.already-bar__text {
+  margin: 0 0 12px;
+  color: #c7d0e8;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
 .quick-pick {
   display: flex;
   flex-wrap: wrap;
@@ -337,6 +356,13 @@ input:focus-visible,
   }
 
   .quick-pick { max-width: none; }
+
+  .already-bar {
+    max-width: none;
+    padding: 18px;
+  }
+
+  .already-bar__text { font-size: 15px; }
 
   .chip {
     flex: 1;

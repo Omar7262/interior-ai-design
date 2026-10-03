@@ -24,6 +24,9 @@ const pickContactsBtn = document.getElementById("pick-contacts");
 const pickPasteBtn = document.getElementById("pick-paste");
 const googleSlot = document.getElementById("google-slot");
 const googleButton = document.getElementById("google-button");
+const alreadyBar = document.getElementById("already-bar");
+const alreadyText = document.getElementById("already-text");
+const notYouBtn = document.getElementById("not-you");
 
 let fillSource = null;
 let countdownTimer = null;
@@ -60,6 +63,36 @@ function readStoredEmail() {
     return null;
   }
 }
+
+function clearStoredEmails() {
+  try {
+    localStorage.removeItem(CONFIG.storageKey);
+  } catch (e) {}
+}
+
+function showAlreadySignedUp(email) {
+  alreadyBar.hidden = false;
+  alreadyText.textContent = "You are already on the list with " + email + " saved on this device, so nothing was sent again.";
+  continueLink.hidden = false;
+  setMsg("Thanks for coming back.", "ok");
+}
+
+function hideAlreadyBar() {
+  alreadyBar.hidden = true;
+  alreadyText.textContent = "";
+}
+
+notYouBtn.addEventListener("click", () => {
+  stopCountdown(true);
+  clearStoredEmails();
+  hideAlreadyBar();
+  continueLink.hidden = true;
+  setMsg("", "");
+  emailInput.value = "";
+  setupQuickPick();
+  startFillPoll();
+  emailInput.focus();
+});
 
 function readEmailFromUrl() {
   try {
@@ -424,28 +457,34 @@ emailInput.addEventListener("input", () => {
     return;
   }
 
+  if (sent) return;
+
   if (!fillSource) fillSource = "typed";
   stopFillPoll();
   hideConfirmBar();
+  hideAlreadyBar();
+  continueLink.hidden = true;
   emailInput.classList.remove("invalid");
   if (countdownTimer) stopCountdown(false);
-  if (!sending && !sent && isValidEmail(emailInput.value.trim())) startCountdown();
+  if (!sending && isValidEmail(emailInput.value.trim())) startCountdown();
 });
 
 (function init() {
   const fromUrl = readEmailFromUrl();
-  const fromStorage = readStoredEmail();
 
   if (fromUrl) {
     emailInput.value = fromUrl;
     fillSource = "url";
-  } else if (fromStorage) {
-    emailInput.value = fromStorage;
-    fillSource = "storage";
+    startCountdown();
+    return;
   }
 
-  if (fillSource) {
-    startCountdown();
+  const fromStorage = readStoredEmail();
+
+  if (fromStorage) {
+    emailInput.value = fromStorage;
+    fillSource = "storage";
+    showAlreadySignedUp(fromStorage);
     return;
   }
 
