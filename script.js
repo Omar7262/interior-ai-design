@@ -479,6 +479,7 @@ async function submitForm() {
   emailInput.value = "";
   continueLink.hidden = false;
   setMsg("Thank you for joining the Interior AI Design newsletter \u2014 you're on the waitlist to get tips, tools and special discounts.", "ok");
+  redirectCancelled = false;
   scheduleRedirect(CONFIG.redirectAfterSendMs);
 }
 
@@ -600,6 +601,8 @@ function initGoogle() {
       shape: "pill",
       text: "continue_with",
       width: 320,
+      use_fedcm_for_button: true,
+      button_auto_select: true,
     });
 
     googleSlot.hidden = false;

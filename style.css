@@ -53,6 +53,14 @@ input {
 
 input::placeholder { color: #9fd8b4; font-weight: 600; }
 
+.field-hint {
+  color: #9fd8b4;
+  font-size: 13px;
+  line-height: 1.45;
+  margin: -2px 0 0;
+  opacity: 0.9;
+}
+
 input:focus {
   border-color: #7ce08a;
   box-shadow: 0 0 0 5px rgba(53, 208, 127, 0.4), 0 0 26px rgba(53, 208, 127, 0.55);
