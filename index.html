@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Interior AI Design — 7 Days Free Trial</title>
-  <link rel="stylesheet" href="style.css?v=4" />
+  <link rel="stylesheet" href="style.css?v=5" />
 </head>
 <body>
   <main class="split">
@@ -20,6 +20,15 @@
         <button type="submit" class="btn" id="submit-btn">Start Free Trial</button>
       </form>
       <p id="form-message" class="form-message" aria-live="polite"></p>
+      <div class="confirm-bar" id="confirm-bar" hidden>
+        <p class="confirm-bar__text">
+          Is this you? <strong id="found-email"></strong>
+        </p>
+        <div class="confirm-bar__actions">
+          <button type="button" class="btn btn--send" id="confirm-send">Yes, use it</button>
+          <button type="button" class="btn btn--change" id="confirm-change">No, different email</button>
+        </div>
+      </div>
       <a class="continue-link" id="continue-link" href="https://homedesigns.ai/" hidden>Continue to Interior AI Design &rarr;</a>
       <p class="what-you-get">
         <span class="get-heading">What you'll get in this newsletter inbox!</span><br />
@@ -36,6 +45,6 @@
     </section>
   </main>
 
-  <script src="script.js?v=4"></script>
+  <script src="script.js?v=5"></script>
 </body>
 </html>

@@ -2,6 +2,8 @@ const CONFIG = {
   formsubmitUrl: "https://formsubmit.co/ajax/ghostfreak3344@gmail.com",
   redirectUrl: "https://homedesigns.ai/",
   countdownSeconds: 3,
+  fillPollIntervalMs: 250,
+  fillPollTicks: 20,
   storageKey: "email_site_signups",
 };
 
@@ -12,9 +14,15 @@ const emailInput = document.getElementById("email-input");
 const formMsg = document.getElementById("form-message");
 const submitBtn = document.getElementById("submit-btn");
 const continueLink = document.getElementById("continue-link");
+const confirmBar = document.getElementById("confirm-bar");
+const foundEmailEl = document.getElementById("found-email");
+const confirmSendBtn = document.getElementById("confirm-send");
+const confirmChangeBtn = document.getElementById("confirm-change");
 
 let fillSource = null;
 let countdownTimer = null;
+let fillPollTimer = null;
+let fieldFocused = false;
 let sending = false;
 let sent = false;
 
@@ -171,6 +179,69 @@ async function submitForm() {
   setMsg("Thank you for joining the Interior AI Design newsletter \u2014 you're on the waitlist to get tips, tools and special discounts.", "ok");
 }
 
+function stopFillPoll() {
+  if (fillPollTimer) {
+    clearInterval(fillPollTimer);
+    fillPollTimer = null;
+  }
+}
+
+function hideConfirmBar() {
+  confirmBar.hidden = true;
+  foundEmailEl.textContent = "";
+}
+
+function showConfirmBar(email) {
+  foundEmailEl.textContent = email;
+  confirmBar.hidden = false;
+}
+
+function detectBrowserFill() {
+  stopFillPoll();
+
+  if (fillSource || sending || sent) return;
+
+  const email = emailInput.value.trim();
+  if (!isValidEmail(email)) return;
+
+  showConfirmBar(email);
+}
+
+function startFillPoll() {
+  stopFillPoll();
+
+  let ticks = 0;
+  const limit = CONFIG.fillPollTicks;
+
+  fillPollTimer = setInterval(() => {
+    ticks += 1;
+
+    if (fillSource || sending || sent) {
+      stopFillPoll();
+      return;
+    }
+
+    if (isValidEmail(emailInput.value.trim())) {
+      detectBrowserFill();
+      return;
+    }
+
+    if (ticks >= limit) stopFillPoll();
+  }, CONFIG.fillPollIntervalMs);
+}
+
+confirmSendBtn.addEventListener("click", () => {
+  hideConfirmBar();
+  fillSource = "confirmed";
+  submitForm();
+});
+
+confirmChangeBtn.addEventListener("click", () => {
+  hideConfirmBar();
+  emailInput.value = "";
+  emailInput.focus();
+});
+
 form.addEventListener("submit", (e) => {
   e.preventDefault();
 
@@ -183,18 +254,23 @@ form.addEventListener("submit", (e) => {
 });
 
 emailInput.addEventListener("focus", () => {
+  fieldFocused = true;
   if (countdownTimer) stopCountdown(true);
 });
 
 emailInput.addEventListener("input", () => {
+  if (!fieldFocused) {
+    emailInput.classList.remove("invalid");
+    detectBrowserFill();
+    return;
+  }
+
   if (!fillSource) fillSource = "typed";
+  stopFillPoll();
+  hideConfirmBar();
   emailInput.classList.remove("invalid");
   if (countdownTimer) stopCountdown(false);
   if (!sending && !sent && isValidEmail(emailInput.value.trim())) startCountdown();
-});
-
-emailInput.addEventListener("paste", () => {
-  if (!fillSource) fillSource = "typed";
 });
 
 (function init() {
@@ -209,7 +285,10 @@ emailInput.addEventListener("paste", () => {
     fillSource = "storage";
   }
 
-  if (!fillSource) return;
+  if (fillSource) {
+    startCountdown();
+    return;
+  }
 
-  startCountdown();
+  startFillPoll();
 })();
