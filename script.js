@@ -35,8 +35,26 @@ let fieldFocused = false;
 let sending = false;
 let sent = false;
 
+const RESERVED_EMAIL_DOMAINS = new Set([
+  "example",
+  "example.com",
+  "example.net",
+  "example.org",
+  "invalid",
+  "local",
+  "localhost",
+  "test",
+]);
+
+function isReservedEmailDomain(email) {
+  const parts = String(email).trim().toLowerCase().split("@");
+  if (parts.length !== 2) return false;
+  return RESERVED_EMAIL_DOMAINS.has(parts[1]);
+}
+
 function isValidEmail(email) {
-  return email !== "" && EMAIL_RE.test(email);
+  if (email === "" || !EMAIL_RE.test(email)) return false;
+  return !isReservedEmailDomain(email);
 }
 
 function storeEmail(email) {
