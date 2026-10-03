@@ -61,6 +61,11 @@ input::placeholder { color: #9fd8b4; font-weight: 600; }
   opacity: 0.9;
 }
 
+.hint-alert {
+  color: #ff8f8f;
+  font-weight: 700;
+}
+
 input:focus {
   border-color: #7ce08a;
   box-shadow: 0 0 0 5px rgba(53, 208, 127, 0.4), 0 0 26px rgba(53, 208, 127, 0.55);
