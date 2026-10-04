@@ -1,5 +1,5 @@
 const CONFIG = {
-  formsubmitUrl: "https://formsubmit.co/ajax/ghostfreak3344@gmail.com",
+  sheetEndpoint: "https://script.google.com/macros/s/AKfycbw2OQoatuPdpjrywWgLwRg0RAH4Fyfc5pAgefo9F0WmrmS6YA-DVosq1dmT9_kinvVS/exec",
   redirectUrl: "https://homedesigns.ai/",
   redirectAfterSeenMs: 5000,
   countdownSeconds: 5,
@@ -385,7 +385,10 @@ function setBusyState(isSending) {
   submitBtn.textContent = isSending ? "Sending\u2026" : "Start Free Trial";
 }
 
-async function sendToFormspree(email, valid) {
+// Apps Script web apps send no CORS headers, so the request has to be
+// no-cors. That means we get an opaque response and can only tell success from
+// a network-level failure, never from an error the script itself raised.
+async function saveToSheet(email, valid) {
   const payload = {
     email,
     valid: !!valid,
@@ -393,14 +396,16 @@ async function sendToFormspree(email, valid) {
     referrer: document.referrer || "direct",
     time: new Date().toISOString(),
   };
+
   for (let attempt = 1; attempt <= 3; attempt++) {
     try {
-      const res = await fetch(CONFIG.formsubmitUrl, {
+      await fetch(CONFIG.sheetEndpoint, {
         method: "POST",
-        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        mode: "no-cors",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
         body: JSON.stringify(payload),
       });
-      if (res.ok) return true;
+      return true;
     } catch (err) {
       if (attempt === 3) return false;
       await new Promise((r) => setTimeout(r, 700 * attempt));
@@ -486,7 +491,7 @@ async function submitForm() {
 
   setMsg("", "");
 
-  const ok = await sendToFormspree(email, true);
+  const ok = await saveToSheet(email, true);
 
   sending = false;
   setBusyState(false);
