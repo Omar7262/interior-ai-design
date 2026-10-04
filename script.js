@@ -5,6 +5,7 @@ const CONFIG = {
   fillPollIntervalMs: 250,
   fillPollTicks: 20,
   storageKey: "email_site_signups",
+  reviewsTimeoutMs: 6000,
   googleClientId: "",
   dnsEndpoint: "https://cloudflare-dns.com/dns-query",
   dnsTimeoutMs: 3000,
@@ -110,9 +111,11 @@ const reviewsCount = document.getElementById("reviews-count");
 const REVIEWS_KEY = "design_ai_reviews";
 const REVIEWS_COUNT_KEY = "design_ai_reviews_count";
 
-// How many reviews this visitor has posted, across devices where they cleared
-// site data we cannot know about. Kept separate from the review list so a
-// trimmed list never lowers the number.
+// Site-wide totals come from the sheet via the Apps Script doGet endpoint. If
+// that call fails for any reason we fall back to the local tally so the pill
+// degrades to this device's own count instead of disappearing.
+let reviewsTotal = null;
+
 function loadReviewCount() {
   const n = Number(localStorage.getItem(REVIEWS_COUNT_KEY));
   return Number.isFinite(n) && n > 0 ? n : 0;
@@ -130,9 +133,61 @@ function bumpReviewCount() {
 
 function renderReviewCount() {
   if (!reviewsCount) return;
+
+  if (reviewsTotal !== null) {
+    reviewsCount.textContent =
+      reviewsTotal === 1 ? "1 review" : reviewsTotal + " reviews";
+    reviewsCount.hidden = reviewsTotal === 0;
+    return;
+  }
+
   const n = loadReviewCount();
   reviewsCount.textContent = n === 1 ? "1 review" : n + " reviews";
   reviewsCount.hidden = n === 0;
+}
+
+// Pulls the approved review total (and average rating) from the sheet. The
+// cache-buster matters: Apps Script responses get cached hard enough that a
+// stale total would otherwise stick around for a long time.
+async function fetchReviewTotal() {
+  const url =
+    CONFIG.sheetEndpoint +
+    "?action=reviews" +
+    "&v=" +
+    encodeURIComponent(String(Date.now()));
+
+  const ctrl =
+    typeof AbortController !== "undefined" ? new AbortController() : null;
+  const timer = ctrl
+    ? setTimeout(() => ctrl.abort(), CONFIG.reviewsTimeoutMs)
+    : null;
+
+  try {
+    const res = await fetch(url, {
+      method: "GET",
+      headers: { Accept: "application/json" },
+      signal: ctrl ? ctrl.signal : undefined,
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (!data || typeof data.count !== "number") return null;
+    return data;
+  } catch (err) {
+    return null;
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
+async function refreshReviewTotal() {
+  const data = await fetchReviewTotal();
+  if (!data) return;
+  reviewsTotal = data.count;
+  if (typeof data.average === "number" && data.average > 0) {
+    const avg = document.getElementById("rating-score");
+    if (avg) avg.textContent = data.average.toFixed(1);
+  }
+  renderReviewCount();
 }
 const offerClock = document.getElementById("offer-clock");
 const offerLabel = document.getElementById("offer-label");
@@ -691,6 +746,7 @@ function initReviewForm() {
 
     rfSubmit.disabled = false;
     saveReview(entry);
+    if (reviewsTotal !== null) reviewsTotal += 1;
     bumpReviewCount();
     reviewForm.reset();
     rfRating = 0;
@@ -704,6 +760,7 @@ function initReviewForm() {
 
 initReviews();
 initReviewForm();
+refreshReviewTotal();
 
 // Apps Script web apps send no CORS headers, so the request has to be
 // no-cors. That means we get an opaque response and can only tell success from
