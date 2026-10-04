@@ -91,7 +91,7 @@ input.invalid { border-color: #ff8f8f; box-shadow: 0 0 0 4px rgba(255, 143, 143,
 
 .trust-strip {
   position: absolute;
-  top: 0;
+  top: 11px;
   right: 2px;
   transform: translateY(-100%);
   display: inline-flex;
