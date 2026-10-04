@@ -123,11 +123,10 @@ input.invalid { border-color: #ff8f8f; box-shadow: 0 0 0 4px rgba(255, 143, 143,
   max-width: 400px;
   margin: 14px 0 0;
   padding: 12px 18px;
-  border: 1px solid rgba(255, 255, 255, 0.22);
+  border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: 10px;
-  background: linear-gradient(90deg, #ff3b3b 0%, #ff8a2b 100%);
-  box-shadow: 0 8px 26px rgba(255, 59, 59, 0.28);
-  color: #2b0703;
+  background: linear-gradient(90deg, #1b2030 0%, #242c40 100%);
+  box-shadow: 0 8px 26px rgba(255, 59, 59, 0.25);
 }
 
 .offer-timer__label {
@@ -137,14 +136,18 @@ input.invalid { border-color: #ff8f8f; box-shadow: 0 0 0 4px rgba(255, 143, 143,
   text-transform: uppercase;
 }
 
+.offer-timer__label .w-limited { color: #5aa9ff; }
+.offer-timer__label .w-time { color: #ffd24d; }
+.offer-timer__label .w-offer { color: #35d07f; }
+
 .offer-timer__clock {
-  color: #ffffff;
+  color: #ff4d4d;
   font-size: 27px;
   font-weight: 800;
   font-variant-numeric: tabular-nums;
   letter-spacing: 1px;
   line-height: 1;
-  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+  text-shadow: 0 0 14px rgba(255, 77, 77, 0.55);
 }
 
 .offer-timer.urgent {
@@ -162,6 +165,8 @@ input.invalid { border-color: #ff8f8f; box-shadow: 0 0 0 4px rgba(255, 143, 143,
   color: #9aa4c0;
   text-shadow: none;
 }
+
+.offer-timer.expired .offer-timer__label { color: #9aa4c0; }
 
 @keyframes offerPulse {
   0%, 100% { box-shadow: 0 8px 26px rgba(255, 59, 59, 0.28); }
