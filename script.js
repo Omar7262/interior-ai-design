@@ -96,11 +96,52 @@ const alreadyText = document.getElementById("already-text");
 const notYouBtn = document.getElementById("not-you");
 const fixRow = document.getElementById("fix-row");
 const fixBtn = document.getElementById("fix-btn");
+const offerTimer = document.getElementById("offer-timer");
+const offerClock = document.getElementById("offer-clock");
 
 let fillSource = null;
 let fillPollTimer = null;
 let fieldFocused = false;
 let sending = false;
+
+// Counts down a 15 minute window. The deadline is stored rather than the
+// remaining seconds, so a refresh mid-count shows the real time left instead of
+// silently restarting at 15:00.
+function startOfferTimer() {
+  const TOTAL_MS = 15 * 60 * 1000;
+  const URGENT_MS = 60 * 1000;
+  const KEY = "offer_deadline";
+
+  let deadline = 0;
+
+  try {
+    deadline = Number(localStorage.getItem(KEY)) || 0;
+    if (!deadline || deadline - Date.now() > TOTAL_MS) {
+      deadline = Date.now() + TOTAL_MS;
+      localStorage.setItem(KEY, String(deadline));
+    }
+  } catch (e) {
+    deadline = Date.now() + TOTAL_MS;
+  }
+
+  const tick = () => {
+    const left = deadline - Date.now();
+
+    if (left <= 0) {
+      offerTimer.hidden = true;
+      return;
+    }
+
+    const mins = Math.floor(left / 60000);
+    const secs = Math.floor((left % 60000) / 1000);
+    offerClock.textContent = mins + ":" + String(secs).padStart(2, "0");
+    offerTimer.classList.toggle("urgent", left <= URGENT_MS);
+
+    setTimeout(tick, 1000 - (left % 1000));
+  };
+
+  tick();
+}
 let sent = false;
 let fixSuggestion = null;
 
@@ -681,6 +722,8 @@ emailInput.addEventListener("input", () => {
 });
 
 (function init() {
+  startOfferTimer();
+
   const fromUrl = readEmailFromUrl();
 
   if (fromUrl) {

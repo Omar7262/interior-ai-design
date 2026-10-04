@@ -114,6 +114,43 @@ input.invalid { border-color: #ff8f8f; box-shadow: 0 0 0 4px rgba(255, 143, 143,
 }
 
 .check { color: #35d07f; font-weight: 800; }
+
+.offer-timer {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+  max-width: 400px;
+  margin: 2px 0 0;
+  padding: 10px 14px;
+  border: 1px solid #ffd24d;
+  border-radius: 8px;
+  background: rgba(255, 210, 77, 0.1);
+}
+
+.offer-timer__label {
+  color: #ffd24d;
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.offer-timer__clock {
+  color: #ffffff;
+  font-size: 20px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 1px;
+}
+
+.offer-timer__note {
+  color: #c7d0e8;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.offer-timer.urgent .offer-timer__clock { color: #ff8f8f; }
+
+.offer-timer[hidden] { display: none; }
 .form-message {
   font-size: 17px;
   font-weight: 700;
