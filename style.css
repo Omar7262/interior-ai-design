@@ -543,12 +543,12 @@ input:focus-visible,
   display: inline-block;
   max-width: 400px;
   margin-top: 4px;
-  padding: 13px 20px;
+  padding: 10px 16px;
   border: 1px solid #7ce08a;
   border-radius: 8px;
   background: rgba(0, 0, 0, 0.35);
   color: #7ce08a;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 700;
   text-decoration: none;
   transition: background 0.15s, color 0.15s;
@@ -652,8 +652,8 @@ input:focus-visible,
 
   .continue-link {
     max-width: none;
-    padding: 16px 20px;
-    font-size: 17px;
+    padding: 10px 16px;
+    font-size: 14px;
   }
 
 .google-slot {
