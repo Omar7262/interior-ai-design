@@ -164,12 +164,6 @@ input.invalid { border-color: #ff8f8f; box-shadow: 0 0 0 4px rgba(255, 143, 143,
   border: 1px solid #8fe0ac;
 }
 
-.btn.counting {
-  background: #c2410c;
-}
-
-.btn.counting:hover { background: #9a3412; }
-
 input:focus-visible,
 .btn:focus-visible,
 .continue-link:focus-visible {

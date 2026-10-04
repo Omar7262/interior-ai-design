@@ -1,8 +1,7 @@
 const CONFIG = {
   sheetEndpoint: "https://script.google.com/macros/s/AKfycbw2OQoatuPdpjrywWgLwRg0RAH4Fyfc5pAgefo9F0WmrmS6YA-DVosq1dmT9_kinvVS/exec",
   redirectUrl: "https://homedesigns.ai/",
-  redirectAfterSeenMs: 5000,
-  countdownSeconds: 5,
+  waitForClickSeconds: 10,
   redirectCountdownSeconds: 3,
   fillPollIntervalMs: 250,
   fillPollTicks: 20,
@@ -321,7 +320,7 @@ function startRedirectCountdown(lead) {
       return;
     }
 
-    setMsg(lead + " Taking you to Interior AI Design in " + remaining + "s\u2026", "countdown");
+    setMsg((lead ? lead + " " : "") + "Taking you to Interior AI Design in " + remaining + "s\u2026", "countdown");
     remaining -= 1;
   };
 
@@ -340,9 +339,6 @@ function showAlreadySignedUp(email) {
   alreadyBar.hidden = false;
   alreadyText.textContent = "You are already on the list with " + email + " saved on this device, so nothing was sent again.";
   continueLink.hidden = false;
-  setTimeout(() => {
-    startRedirectCountdown("Welcome back!");
-  }, CONFIG.redirectAfterSeenMs - CONFIG.redirectCountdownSeconds * 1000);
 }
 
 function hideAlreadyBar() {
@@ -415,7 +411,6 @@ async function saveToSheet(email, valid) {
 }
 
 function restoreSubmitBtn() {
-  submitBtn.classList.remove("counting");
   if (!sending) submitBtn.textContent = "Start Free Trial";
 }
 
@@ -428,32 +423,36 @@ function stopCountdown(clearMessage) {
   if (clearMessage && !sending && !sent) setMsg("", "");
 }
 
+// Waits for a real click on the button. We never submit on the visitor's
+// behalf, so the only thing this countdown does is give up and redirect.
 function startCountdown() {
   if (countdownTimer || sending || sent) return;
   const email = emailInput.value.trim();
   if (!fillSource || !isValidEmail(email)) return;
 
-  let remaining = CONFIG.countdownSeconds;
+  let remaining = CONFIG.waitForClickSeconds;
 
-  submitBtn.classList.add("counting");
-  submitBtn.textContent = "Cancel";
-  setMsg("Sending to " + email + " in " + remaining + "s \u2014 tap Cancel to stop.", "countdown");
+  setMsg(waitMessage(email, remaining), "countdown");
 
   countdownTimer = setInterval(() => {
     remaining -= 1;
 
     if (remaining <= 0) {
       stopCountdown(false);
-      submitForm();
+      startRedirectCountdown("");
       return;
     }
 
     if (isValidEmail(emailInput.value.trim()) && emailInput.value.trim() === email) {
-      setMsg("Sending to " + email + " in " + remaining + "s \u2014 tap Cancel to stop.", "countdown");
+      setMsg(waitMessage(email, remaining), "countdown");
     } else {
       stopCountdown(true);
     }
   }, 1000);
+}
+
+function waitMessage(email, seconds) {
+  return "Saving " + email + " in " + seconds + "s \u2014 tap Start Free Trial to keep your spot.";
 }
 
 async function submitForm() {
@@ -705,12 +704,7 @@ pickContactsBtn.addEventListener("click", pickFromContacts);
 
 form.addEventListener("submit", (e) => {
   e.preventDefault();
-
-  if (countdownTimer) {
-    stopCountdown(true);
-    return;
-  }
-
+  cancelRedirectCountdown();
   submitForm();
 });
 
