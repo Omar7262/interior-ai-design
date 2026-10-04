@@ -140,7 +140,7 @@ fixBtn.addEventListener("click", () => {
   fieldFocused = true;
   emailInput.classList.remove("invalid");
   hideFixRow();
-  setMsg("Check it looks right, then tap Start Free Trial.", "");
+  setMsg("Check it looks right, then tap Start Free Trial to Get Started.", "");
 });
 
 const RESERVED_EMAIL_DOMAINS = new Set([
@@ -373,7 +373,7 @@ function setBusyState(isSending) {
   emailInput.disabled = isSending;
   submitBtn.disabled = isSending;
   submitBtn.classList.toggle("loading", isSending);
-  submitBtn.textContent = isSending ? "Sending\u2026" : "Start Free Trial";
+  submitBtn.textContent = isSending ? "Sending\u2026" : "Start Free Trial to Get Started";
 }
 
 // Apps Script web apps send no CORS headers, so the request has to be
