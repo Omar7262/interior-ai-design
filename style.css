@@ -559,11 +559,6 @@ input:focus-visible,
   color: #062b16;
 }
 
-.continue-link:hover {
-  background: #7ce08a;
-  color: #0b1a0f;
-}
-
 .continue-link[hidden] { display: none; }
 
 .side-image { display: flex; position: relative; }
