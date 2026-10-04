@@ -452,7 +452,10 @@ function startCountdown() {
 }
 
 function waitMessage(email, seconds) {
-  return "Saving " + email + " in " + seconds + "s \u2014 tap Start Free Trial to keep your spot.";
+  if (!alreadyBar.hidden) {
+    return "You are already on the list — heading over in " + seconds + "s.";
+  }
+  return "Saving " + email + " in " + seconds + "s — tap Start Free Trial to keep your spot.";
 }
 
 async function submitForm() {
@@ -749,6 +752,7 @@ emailInput.addEventListener("input", () => {
     emailInput.value = fromStorage;
     fillSource = "storage";
     showAlreadySignedUp(fromStorage);
+    startCountdown();
     return;
   }
 
