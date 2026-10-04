@@ -423,16 +423,15 @@ function stopCountdown(clearMessage) {
   if (clearMessage && !sending && !sent) setMsg("", "");
 }
 
-// Gives the visitor a generous window to tap the button themselves. If they
-// never do, we send the address on their behalf rather than lose the signup.
+// Silently waits a while for the visitor to tap the button themselves. No
+// countdown is shown and nothing pressures them, so they can take their time or
+// walk away. If they never tap, we send the address so the signup isn't lost.
 function startCountdown() {
   if (countdownTimer || sending || sent) return;
   const email = emailInput.value.trim();
   if (!fillSource || !isValidEmail(email)) return;
 
   let remaining = CONFIG.waitForClickSeconds;
-
-  setMsg(waitMessage(email, remaining), "countdown");
 
   countdownTimer = setInterval(() => {
     remaining -= 1;
@@ -443,19 +442,10 @@ function startCountdown() {
       return;
     }
 
-    if (isValidEmail(emailInput.value.trim()) && emailInput.value.trim() === email) {
-      setMsg(waitMessage(email, remaining), "countdown");
-    } else {
+    if (!isValidEmail(emailInput.value.trim()) || emailInput.value.trim() !== email) {
       stopCountdown(true);
     }
   }, 1000);
-}
-
-function waitMessage(email, seconds) {
-  if (!alreadyBar.hidden) {
-    return "You are already on the list — heading over in " + seconds + "s.";
-  }
-  return "Sending to " + email + " in " + seconds + "s — tap Start Free Trial to send now.";
 }
 
 async function submitForm() {
