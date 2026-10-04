@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Interior AI Design — 7 Days Free Trial</title>
   <meta name="google-client-id" content="" />
-  <link rel="stylesheet" href="style.css?v=20" />
+  <link rel="stylesheet" href="style.css?v=21" />
 </head>
 <body>
   <main class="split">
@@ -76,6 +76,34 @@
         <span class="get-item"><span class="check">&#10004;</span> Smart design workflows</span>
         <span class="get-item"><span class="check">&#10004;</span> How to use more features in the AI interior design tools &amp; many more</span>
       </p>
+
+      <section class="reviews" aria-labelledby="reviews-heading">
+        <h2 class="reviews__heading" id="reviews-heading">What our readers say</h2>
+
+        <div class="reviews__track" id="reviews-track" role="group"
+             aria-label="Reader reviews, scroll sideways for more" tabindex="0">
+        </div>
+
+        <div class="reviews__nav">
+          <button type="button" class="reviews__arrow" id="reviews-prev" aria-label="Previous reviews">&#8249;</button>
+          <button type="button" class="reviews__arrow" id="reviews-next" aria-label="Next reviews">&#8250;</button>
+        </div>
+
+        <form class="review-form" id="review-form" novalidate>
+          <p class="review-form__title">Had a look? Tell other designers</p>
+          <div class="review-form__stars" role="radiogroup" aria-label="Your rating">
+            <button type="button" class="rf-star" data-star="1" role="radio" aria-checked="false" aria-label="1 star">&#9733;</button>
+            <button type="button" class="rf-star" data-star="2" role="radio" aria-checked="false" aria-label="2 stars">&#9733;</button>
+            <button type="button" class="rf-star" data-star="3" role="radio" aria-checked="false" aria-label="3 stars">&#9733;</button>
+            <button type="button" class="rf-star" data-star="4" role="radio" aria-checked="false" aria-label="4 stars">&#9733;</button>
+            <button type="button" class="rf-star" data-star="5" role="radio" aria-checked="false" aria-label="5 stars">&#9733;</button>
+          </div>
+          <input id="rf-name" type="text" name="name" placeholder="First name" autocomplete="name" maxlength="40" />
+          <textarea id="rf-text" name="review" rows="3" placeholder="What worked for you?" maxlength="400" required></textarea>
+          <button type="submit" class="rf-submit">Send review</button>
+          <p class="form-message" id="rf-message" aria-live="polite"></p>
+        </form>
+      </section>
     </section>
 
     <section class="side side-image">
@@ -85,7 +113,7 @@
     </section>
   </main>
 
-  <script src="script.js?v=20"></script>
+  <script src="script.js?v=21"></script>
   <script src="https://accounts.google.com/gsi/client" async defer></script>
 </body>
 </html>

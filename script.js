@@ -97,6 +97,16 @@ const notYouBtn = document.getElementById("not-you");
 const fixRow = document.getElementById("fix-row");
 const fixBtn = document.getElementById("fix-btn");
 const offerTimer = document.getElementById("offer-timer");
+const reviewsTrack = document.getElementById("reviews-track");
+const reviewsPrev = document.getElementById("reviews-prev");
+const reviewsNext = document.getElementById("reviews-next");
+const reviewForm = document.getElementById("review-form");
+const rfName = document.getElementById("rf-name");
+const rfText = document.getElementById("rf-text");
+const rfMessage = document.getElementById("rf-message");
+const rfSubmit = document.querySelector(".rf-submit");
+const rfStars = Array.from(document.querySelectorAll(".rf-star"));
+const REVIEWS_KEY = "design_ai_reviews";
 const offerClock = document.getElementById("offer-clock");
 const offerLabel = document.getElementById("offer-label");
 
@@ -421,6 +431,249 @@ function setBusyState(isSending) {
   submitBtn.classList.toggle("loading", isSending);
   submitBtn.textContent = isSending ? "Sending\u2026" : "Get Started";
 }
+
+const REVIEWS_SLIDE_MS = 1000;
+let reviewsTimer = null;
+let reviewsHold = false;
+let rfRating = 0;
+
+function loadReviews() {
+  try {
+    const raw = localStorage.getItem(REVIEWS_KEY);
+    const list = raw ? JSON.parse(raw) : [];
+    return Array.isArray(list) ? list : [];
+  } catch (err) {
+    return [];
+  }
+}
+
+function saveReview(entry) {
+  const next = [entry, ...loadReviews()].slice(0, 60);
+  try {
+    localStorage.setItem(REVIEWS_KEY, JSON.stringify(next));
+  } catch (err) {
+    /* storage full or blocked, card still renders this session */
+  }
+  return next;
+}
+
+function starMarkup(rating) {
+  let html = "";
+  for (let i = 1; i <= 5; i++) {
+    const cls = i <= rating ? "review-card__star" : "review-card__star off";
+    html += '<span class="' + cls + '">&#9733;</span>';
+  }
+  return html;
+}
+
+function renderReviews() {
+  const list = loadReviews();
+  const track = reviewsTrack;
+  if (!track) return;
+
+  if (!list.length) {
+    track.innerHTML =
+      '<p class="reviews__empty">No reviews yet. Be the first &mdash; send yours below and it appears here for everyone.</p>';
+    if (reviewsPrev) reviewsPrev.disabled = true;
+    if (reviewsNext) reviewsNext.disabled = true;
+    return;
+  }
+
+  track.innerHTML = list
+    .map(function (r) {
+      const safeText = String(r.text || "").replace(/[<>&"]/g, function (c) {
+        return { "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;" }[c];
+      });
+      const safeName = String(r.name || "A reader").replace(/[<>&"]/g, function (c) {
+        return { "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;" }[c];
+      });
+      return (
+        '<figure class="review-card">' +
+        '<div class="review-card__stars">' + starMarkup(r.rating) + "</div>" +
+        '<blockquote class="review-card__text">' + safeText + "</blockquote>" +
+        '<figcaption class="review-card__who">' + safeName + "</figcaption>" +
+        "</figure>"
+      );
+    })
+    .join("");
+
+  reviewsSync();
+  reviewsStart();
+}
+
+function reviewCards() {
+  return reviewsTrack
+    ? Array.from(reviewsTrack.querySelectorAll(".review-card"))
+    : [];
+}
+
+function reviewsStep() {
+  const cards = reviewCards();
+  if (!cards.length) return 202;
+  const gap = parseFloat(getComputedStyle(reviewsTrack).columnGap || "0") || 12;
+  return cards[0].getBoundingClientRect().width + gap;
+}
+
+function reviewsIndex() {
+  return Math.round(reviewsTrack.scrollLeft / reviewsStep());
+}
+
+function reviewsAtEnd() {
+  return (
+    reviewsTrack.scrollLeft + reviewsTrack.clientWidth >=
+    reviewsTrack.scrollWidth - 4
+  );
+}
+
+function reviewsGoTo(i) {
+  const cards = reviewCards();
+  const target = Math.max(0, Math.min(cards.length - 1, i));
+  reviewsTrack.scrollTo({ left: target * reviewsStep(), behavior: "smooth" });
+}
+
+function reviewsSync() {
+  if (!reviewsTrack) return;
+  const active = reviewsIndex();
+  if (reviewsPrev) reviewsPrev.disabled = reviewsTrack.scrollLeft <= 4;
+  if (reviewsNext) reviewsNext.disabled = reviewsAtEnd();
+  return active;
+}
+
+function reviewsStop() {
+  if (reviewsTimer) {
+    clearInterval(reviewsTimer);
+    reviewsTimer = null;
+  }
+}
+
+function reviewsStart() {
+  reviewsStop();
+  if (reviewsHold) return;
+  if (reviewCards().length < 2) return;
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  reviewsTimer = setInterval(function () {
+    reviewsGoTo(reviewsAtEnd() ? 0 : reviewsIndex() + 1);
+  }, REVIEWS_SLIDE_MS);
+}
+
+function initReviews() {
+  if (!reviewsTrack) return;
+  renderReviews();
+
+  if (reviewsPrev) {
+    reviewsPrev.addEventListener("click", function () {
+      reviewsHold = true;
+      reviewsGoTo(reviewsIndex() - 1);
+      reviewsStop();
+    });
+  }
+
+  if (reviewsNext) {
+    reviewsNext.addEventListener("click", function () {
+      reviewsHold = true;
+      reviewsGoTo(reviewsAtEnd() ? 0 : reviewsIndex() + 1);
+      reviewsStop();
+    });
+  }
+
+  let settle = null;
+  reviewsTrack.addEventListener(
+    "scroll",
+    function () {
+      reviewsSync();
+      clearTimeout(settle);
+      settle = setTimeout(function () {
+        reviewsHold = false;
+        reviewsStart();
+      }, 1200);
+    },
+    { passive: true }
+  );
+
+  ["mouseenter", "focusin", "pointerdown", "touchstart"].forEach(function (evt) {
+    reviewsTrack.addEventListener(evt, function () {
+      reviewsHold = true;
+      reviewsStop();
+    });
+  });
+
+  ["mouseleave", "focusout"].forEach(function (evt) {
+    reviewsTrack.addEventListener(evt, function () {
+      reviewsHold = false;
+      reviewsStart();
+    });
+  });
+}
+
+function paintRfStars() {
+  rfStars.forEach(function (star) {
+    const on = Number(star.dataset.star) <= rfRating;
+    star.classList.toggle("on", on);
+    star.setAttribute("aria-checked", on ? "true" : "false");
+  });
+}
+
+function initReviewForm() {
+  if (!reviewForm) return;
+
+  rfStars.forEach(function (star) {
+    star.addEventListener("click", function () {
+      rfRating = Number(star.dataset.star);
+      paintRfStars();
+    });
+  });
+
+  reviewForm.addEventListener("submit", async function (e) {
+    e.preventDefault();
+    const text = rfText.value.trim();
+
+    if (!rfRating) {
+      rfMessage.className = "form-message bad";
+      rfMessage.textContent = "Please pick a star rating first.";
+      return;
+    }
+
+    if (text.length < 5) {
+      rfMessage.className = "form-message bad";
+      rfMessage.textContent = "Please write a few words first.";
+      return;
+    }
+
+    rfSubmit.disabled = true;
+    rfMessage.className = "form-message";
+    rfMessage.textContent = "Sending\u2026";
+
+    const entry = {
+      name: rfName.value.trim(),
+      rating: rfRating,
+      text: text,
+      time: Date.now(),
+    };
+
+    await postToSheet({
+      type: "review",
+      name: entry.name,
+      rating: entry.rating,
+      review: entry.text,
+      page: location.href,
+      referrer: document.referrer || "direct",
+      time: new Date().toISOString(),
+    });
+
+    rfSubmit.disabled = false;
+    saveReview(entry);
+    reviewForm.reset();
+    rfRating = 0;
+    paintRfStars();
+    rfMessage.className = "form-message ok";
+    rfMessage.textContent = "Thanks \u2014 your review is now on the page.";
+    reviewsHold = false;
+    renderReviews();
+  });
+}
+
+initReviews();
+initReviewForm();
 
 // Apps Script web apps send no CORS headers, so the request has to be
 // no-cors. That means we get an opaque response and can only tell success from
