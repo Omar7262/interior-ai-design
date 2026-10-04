@@ -546,12 +546,17 @@ input:focus-visible,
   padding: 10px 16px;
   border: 1px solid #7ce08a;
   border-radius: 8px;
-  background: rgba(0, 0, 0, 0.35);
-  color: #7ce08a;
+  background: #35d07f;
+  color: #062b16;
   font-size: 14px;
   font-weight: 700;
   text-decoration: none;
   transition: background 0.15s, color 0.15s;
+}
+
+.continue-link:hover {
+  background: #2bbd70;
+  color: #062b16;
 }
 
 .continue-link:hover {
