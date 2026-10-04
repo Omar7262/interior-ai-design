@@ -102,6 +102,13 @@ const reviewText = document.getElementById("review-text");
 const reviewSubmit = document.getElementById("review-submit");
 const reviewMessage = document.getElementById("review-message");
 const reviewStars = Array.from(document.querySelectorAll(".star-input__star"));
+const testiTrack = document.getElementById("testi-track");
+const testiCards = testiTrack
+  ? Array.from(testiTrack.querySelectorAll(".testimonial"))
+  : [];
+const testiPrev = document.getElementById("testi-prev");
+const testiNext = document.getElementById("testi-next");
+const testiDots = document.getElementById("testi-dots");
 const offerTimer = document.getElementById("offer-timer");
 const offerClock = document.getElementById("offer-clock");
 const offerLabel = document.getElementById("offer-label");
@@ -460,6 +467,131 @@ async function saveToSheet(email, valid) {
 }
 
 let reviewRating = 0;
+
+const TESTI_INTERVAL = 4500;
+let testiTimer = null;
+let testiHold = false;
+
+function testiStep() {
+  if (!testiCards.length) return 236;
+  const gap =
+    parseFloat(getComputedStyle(testiTrack).columnGap || "0") || 12;
+  return testiCards[0].getBoundingClientRect().width + gap;
+}
+
+function testiIndex() {
+  return Math.round(testiTrack.scrollLeft / testiStep());
+}
+
+function testiAtEnd() {
+  return (
+    testiTrack.scrollLeft + testiTrack.clientWidth >=
+    testiTrack.scrollWidth - 4
+  );
+}
+
+function testiGoTo(i) {
+  const last = testiCards.length - 1;
+  const target = Math.max(0, Math.min(last, i));
+  testiTrack.scrollTo({ left: target * testiStep(), behavior: "smooth" });
+}
+
+function testiSync() {
+  if (testiDots) {
+    const active = testiIndex();
+    Array.from(testiDots.children).forEach((dot, i) => {
+      dot.classList.toggle("on", i === active);
+      dot.setAttribute("aria-selected", i === active ? "true" : "false");
+    });
+  }
+  if (testiPrev) testiPrev.disabled = testiTrack.scrollLeft <= 4;
+  if (testiNext) testiNext.disabled = testiAtEnd();
+}
+
+function testiStop() {
+  if (testiTimer) {
+    clearInterval(testiTimer);
+    testiTimer = null;
+  }
+}
+
+function testiStart() {
+  testiStop();
+  if (testiHold || testiCards.length < 2) return;
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  testiTimer = setInterval(() => {
+    testiGoTo(testiAtEnd() ? 0 : testiIndex() + 1);
+  }, TESTI_INTERVAL);
+}
+
+function initTestimonials() {
+  if (!testiTrack || !testiCards.length) return;
+
+  if (testiDots) {
+    testiCards.forEach((_, i) => {
+      const dot = document.createElement("button");
+      dot.type = "button";
+      dot.className = "testimonials__dot";
+      dot.setAttribute("role", "tab");
+      dot.setAttribute("aria-label", `Go to review ${i + 1}`);
+      dot.addEventListener("click", () => {
+        testiHold = true;
+        testiGoTo(i);
+        testiStop();
+      });
+      testiDots.appendChild(dot);
+    });
+  }
+
+  if (testiPrev) {
+    testiPrev.addEventListener("click", () => {
+      testiHold = true;
+      testiGoTo(testiIndex() - 1);
+      testiStop();
+    });
+  }
+
+  if (testiNext) {
+    testiNext.addEventListener("click", () => {
+      testiHold = true;
+      testiGoTo(testiAtEnd() ? 0 : testiIndex() + 1);
+      testiStop();
+    });
+  }
+
+  let settle = null;
+  testiTrack.addEventListener(
+    "scroll",
+    () => {
+      testiSync();
+      clearTimeout(settle);
+      settle = setTimeout(() => {
+        testiHold = false;
+        testiStart();
+      }, 1200);
+    },
+    { passive: true },
+  );
+
+  ["mouseenter", "focusin", "pointerdown", "touchstart"].forEach((evt) =>
+    testiTrack.addEventListener(evt, () => {
+      testiHold = true;
+      testiStop();
+    }),
+  );
+
+  ["mouseleave", "focusout"].forEach((evt) =>
+    testiTrack.addEventListener(evt, () => {
+      testiHold = false;
+      testiStart();
+    }),
+  );
+
+  testiSync();
+  testiStart();
+}
+
+initTestimonials();
 
 function paintStars() {
   reviewStars.forEach((star) => {
