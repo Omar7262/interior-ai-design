@@ -19,7 +19,17 @@
                autocomplete="email" autocapitalize="none" autocorrect="off"
                spellcheck="false" required />
         <p class="field-hint"><span class="hint-alert">If u made mistake</span> and want to resubmit it reopen the link</p>
-        <button type="submit" class="btn" id="submit-btn">Get Started</button>
+        <div class="btn-anchor">
+          <p class="trust-strip" id="trust-strip">
+            <svg class="trust-strip__lock" viewBox="0 0 24 24" width="11" height="11" aria-hidden="true">
+              <path fill="currentColor" d="M12 1a5 5 0 0 0-5 5v3H6a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-9a2 2 0 0 0-2-2h-1V6a5 5 0 0 0-5-5zm-3 8V6a3 3 0 1 1 6 0v3H9z" />
+            </svg>
+            <span>Secure signup</span>
+            <span class="trust-strip__sep"></span>
+            <span>No spam</span>
+          </p>
+          <button type="submit" class="btn" id="submit-btn">Get Started</button>
+        </div>
         <p class="offer-timer" id="offer-timer">
           <span class="offer-timer__label" id="offer-label"><span class="w-limited">Limited</span> <span class="w-time">Time</span> <span class="w-offer">Offer</span></span>
           <span class="offer-timer__clock" id="offer-clock">15:00</span>

@@ -85,6 +85,45 @@ input.invalid { border-color: #ff8f8f; box-shadow: 0 0 0 4px rgba(255, 143, 143,
 
 .btn:hover { background: #2f58d8; }
 
+.btn-anchor {
+  position: relative;
+}
+
+.trust-strip {
+  position: absolute;
+  top: 0;
+  right: 2px;
+  transform: translateY(-100%);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin: 0;
+  padding: 3px 8px;
+  border: 1px solid rgba(124, 224, 138, 0.28);
+  border-radius: 999px;
+  background: rgba(16, 19, 32, 0.92);
+  color: #7ce08a;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.trust-strip__lock {
+  flex: none;
+  color: #7ce08a;
+}
+
+.trust-strip__sep {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.55;
+}
+
 .btn.loading {
   font-size: 18px;
   background: #35d07f;
