@@ -565,6 +565,60 @@ input.invalid { border-color: #ff8f8f; box-shadow: 0 0 0 4px rgba(255, 143, 143,
   border: 1px solid #8fe0ac;
 }
 
+/* Shared by both redirect banners: the form message and the copy mirrored in
+   the reviews section. */
+.form-message.countdown,
+.redirect-note {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 8px;
+}
+
+.cd-lead {
+  width: 100%;
+  font-weight: 800;
+}
+
+.cd-label { font-weight: 700; }
+
+.cd-dots {
+  display: inline-flex;
+  gap: 3px;
+  align-self: center;
+}
+
+.cd-dots i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #0e5a2c;
+  animation: cdBlink 1.2s ease-in-out infinite;
+}
+
+.cd-dots i:nth-child(2) { animation-delay: 0.2s; }
+.cd-dots i:nth-child(3) { animation-delay: 0.4s; }
+
+.cd-num {
+  margin-left: auto;
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: rgba(14, 90, 44, 0.14);
+  border: 1px solid rgba(14, 90, 44, 0.3);
+  font-size: 13px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+@keyframes cdBlink {
+  0%, 80%, 100% { opacity: 0.2; }
+  40% { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cd-dots i { animation: none; opacity: 0.7; }
+}
+
 input:focus-visible,
 .btn:focus-visible,
 .continue-link:focus-visible {

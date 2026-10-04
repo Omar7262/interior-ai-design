@@ -458,13 +458,44 @@ function scrollToReviews() {
   });
 }
 
+// One markup shape for both countdown banners: the form message and the copy
+// mirrored down in the reviews section. Rendered as elements rather than a
+// text string so the dots can animate and the seconds can sit alongside.
+function countdownMarkup(lead, remaining) {
+  const leadPart = lead
+    ? '<span class="cd-lead">' + lead + "</span>"
+    : "";
+  return (
+    leadPart +
+    '<span class="cd-label">Redirecting to Interior AI Design</span>' +
+    '<span class="cd-dots" aria-hidden="true">' +
+    '<i></i><i></i><i></i>' +
+    "</span>" +
+    '<span class="cd-num">' + remaining + " sec</span>"
+  );
+}
+
+function paintCountdown(lead, remaining) {
+  const html = countdownMarkup(lead, remaining);
+
+  const msg = document.getElementById("form-message");
+  if (msg) {
+    msg.className = "form-message countdown";
+    msg.innerHTML = html;
+  }
+
+  // Mirrored down in the reviews section, since we scroll there on submit.
+  const note = document.getElementById("redirect-note");
+  if (note) {
+    note.hidden = false;
+    note.innerHTML = html;
+  }
+}
+
 function startRedirectCountdown(lead) {
   const total = CONFIG.redirectCountdownSeconds;
   let remaining = total;
   let done = false;
-
-  const dots = (n) => "\u25cf".repeat(Math.max(0, n));
-  const note = document.getElementById("redirect-note");
 
   const tick = () => {
     if (done) return;
@@ -476,20 +507,7 @@ function startRedirectCountdown(lead) {
       return;
     }
 
-    const text =
-      (lead ? lead + " " : "") +
-      "Taking you to Interior AI Design in " +
-      dots(remaining) +
-      " ";
-
-    setMsg(text, "countdown");
-
-    // Mirrored down in the reviews section, since we just scrolled there.
-    if (note) {
-      note.textContent = text;
-      note.hidden = false;
-    }
-
+    paintCountdown(lead, remaining);
     remaining -= 1;
   };
 
