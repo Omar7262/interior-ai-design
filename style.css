@@ -211,7 +211,7 @@ input.invalid { border-color: #ff8f8f; box-shadow: 0 0 0 4px rgba(255, 143, 143,
   font-size: 15px;
   font-weight: 600;
   line-height: 1.45;
-  margin: -14px 0 0;
+  margin: 12px 0 0;
   max-width: 400px;
 }
 
