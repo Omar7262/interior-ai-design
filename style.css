@@ -234,6 +234,7 @@ input.invalid { border-color: #ff8f8f; box-shadow: 0 0 0 4px rgba(255, 143, 143,
   max-width: 400px;
   margin-top: 18px;
   padding-top: 20px;
+  scroll-margin-top: 24px;
   border-top: 1px solid rgba(124, 224, 138, 0.22);
 }
 
@@ -260,6 +261,21 @@ input.invalid { border-color: #ff8f8f; box-shadow: 0 0 0 4px rgba(255, 143, 143,
 }
 
 .reviews__count[hidden] { display: none; }
+
+.redirect-note {
+  margin: 0 0 14px;
+  padding: 11px 14px;
+  border: 1px solid #8fe0ac;
+  border-radius: 8px;
+  background: #e4f7ea;
+  color: #0e5a2c;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.5;
+  max-width: 400px;
+}
+
+.redirect-note[hidden] { display: none; }
 
 .reviews__track {
   display: flex;

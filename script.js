@@ -440,9 +440,31 @@ let redirectCountdownTimer = null;
 
 // Show a visible 3s countdown, then go. Used for every redirect so nobody is
 // yanked off the page without warning.
+// After a successful signup, walk the visitor down to the reviews section so
+// the countdown message and the social proof are both on screen before the
+// redirect fires. Deferred by a frame so the form reset above has painted.
+function scrollToReviews() {
+  const target = document.getElementById("reviews-heading");
+  if (!target) return;
+
+  const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const section = target.closest(".reviews") || target;
+
+  requestAnimationFrame(() => {
+    section.scrollIntoView({
+      behavior: reduced ? "auto" : "smooth",
+      block: "start",
+    });
+  });
+}
+
 function startRedirectCountdown(lead) {
-  let remaining = CONFIG.redirectCountdownSeconds;
+  const total = CONFIG.redirectCountdownSeconds;
+  let remaining = total;
   let done = false;
+
+  const dots = (n) => "\u25cf".repeat(Math.max(0, n));
+  const note = document.getElementById("redirect-note");
 
   const tick = () => {
     if (done) return;
@@ -454,7 +476,20 @@ function startRedirectCountdown(lead) {
       return;
     }
 
-    setMsg((lead ? lead + " " : "") + "Taking you to Interior AI Design in " + remaining + "s\u2026", "countdown");
+    const text =
+      (lead ? lead + " " : "") +
+      "Taking you to Interior AI Design in " +
+      dots(remaining) +
+      " ";
+
+    setMsg(text, "countdown");
+
+    // Mirrored down in the reviews section, since we just scrolled there.
+    if (note) {
+      note.textContent = text;
+      note.hidden = false;
+    }
+
     remaining -= 1;
   };
 
@@ -480,10 +515,19 @@ function hideAlreadyBar() {
   alreadyText.textContent = "";
 }
 
+// Clears the mirrored countdown that sits down in the reviews section.
+function hideRedirectNote() {
+  const note = document.getElementById("redirect-note");
+  if (!note) return;
+  note.hidden = true;
+  note.textContent = "";
+}
+
 notYouBtn.addEventListener("click", () => {
   cancelRedirectCountdown();
   clearStoredEmails();
   hideAlreadyBar();
+  hideRedirectNote();
   continueLink.hidden = true;
   setMsg("", "");
   emailInput.value = "";
@@ -845,6 +889,7 @@ async function submitForm() {
   emailInput.value = "";
   continueLink.hidden = false;
   startRedirectCountdown("You are on the list!");
+  scrollToReviews();
 }
 
 function stopFillPoll() {
@@ -1064,6 +1109,7 @@ emailInput.addEventListener("input", () => {
   hideConfirmBar();
   hideAlreadyBar();
   hideFixRow();
+  hideRedirectNote();
   continueLink.hidden = true;
   emailInput.classList.remove("invalid");
   setMsg("", "");
