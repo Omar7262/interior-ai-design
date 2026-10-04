@@ -33,6 +33,13 @@ body {
 
 .kicker .check { font-size: 22px; margin-left: 4px; }
 
+.kicker__sub {
+  color: #7ce08a;
+  font-size: 15px;
+  letter-spacing: 0.06em;
+  font-weight: 700;
+}
+
 h1 { font-size: clamp(30px, 4vw, 46px); line-height: 1.15; margin-bottom: 16px; }
 
 p { color: #c7d0e8; font-size: 15px; line-height: 1.6; margin-bottom: 24px; max-width: 460px; }
