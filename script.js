@@ -1,7 +1,6 @@
 const CONFIG = {
   sheetEndpoint: "https://script.google.com/macros/s/AKfycbw2OQoatuPdpjrywWgLwRg0RAH4Fyfc5pAgefo9F0WmrmS6YA-DVosq1dmT9_kinvVS/exec",
   redirectUrl: "https://homedesigns.ai/",
-  waitForClickSeconds: 30,
   redirectCountdownSeconds: 3,
   fillPollIntervalMs: 250,
   fillPollTicks: 20,
@@ -99,7 +98,6 @@ const fixRow = document.getElementById("fix-row");
 const fixBtn = document.getElementById("fix-btn");
 
 let fillSource = null;
-let countdownTimer = null;
 let fillPollTimer = null;
 let fieldFocused = false;
 let sending = false;
@@ -113,7 +111,6 @@ function hideFixRow() {
 }
 
 function showEmailProblem(email, problem) {
-  stopCountdown(true);
   emailInput.classList.add("invalid");
 
   if (problem.reason === "typo") {
@@ -143,8 +140,7 @@ fixBtn.addEventListener("click", () => {
   fieldFocused = true;
   emailInput.classList.remove("invalid");
   hideFixRow();
-  setMsg("Check it looks right, then it sends.", "");
-  startCountdown();
+  setMsg("Check it looks right, then tap Start Free Trial.", "");
 });
 
 const RESERVED_EMAIL_DOMAINS = new Set([
@@ -348,7 +344,6 @@ function hideAlreadyBar() {
 
 notYouBtn.addEventListener("click", () => {
   cancelRedirectCountdown();
-  stopCountdown(true);
   clearStoredEmails();
   hideAlreadyBar();
   continueLink.hidden = true;
@@ -410,44 +405,6 @@ async function saveToSheet(email, valid) {
   return false;
 }
 
-function restoreSubmitBtn() {
-  if (!sending) submitBtn.textContent = "Start Free Trial";
-}
-
-function stopCountdown(clearMessage) {
-  if (countdownTimer) {
-    clearInterval(countdownTimer);
-    countdownTimer = null;
-  }
-  restoreSubmitBtn();
-  if (clearMessage && !sending && !sent) setMsg("", "");
-}
-
-// Silently waits a while for the visitor to tap the button themselves. No
-// countdown is shown and nothing pressures them, so they can take their time or
-// walk away. If they never tap, we send the address so the signup isn't lost.
-function startCountdown() {
-  if (countdownTimer || sending || sent) return;
-  const email = emailInput.value.trim();
-  if (!fillSource || !isValidEmail(email)) return;
-
-  let remaining = CONFIG.waitForClickSeconds;
-
-  countdownTimer = setInterval(() => {
-    remaining -= 1;
-
-    if (remaining <= 0) {
-      stopCountdown(false);
-      submitForm();
-      return;
-    }
-
-    if (!isValidEmail(emailInput.value.trim()) || emailInput.value.trim() !== email) {
-      stopCountdown(true);
-    }
-  }, 1000);
-}
-
 async function submitForm() {
   if (sending || sent) return;
 
@@ -468,7 +425,6 @@ async function submitForm() {
   }
 
   sending = true;
-  stopCountdown(false);
   setBusyState(true);
   setMsg("Checking " + domainOf(email) + "\u2026");
 
@@ -683,7 +639,7 @@ function applyEmail(value) {
   fillSource = "picked";
   stopFillPoll();
   emailInput.value = email;
-  startCountdown();
+  emailInput.focus();
 }
 
 function setupQuickPick() {
@@ -703,7 +659,6 @@ form.addEventListener("submit", (e) => {
 
 emailInput.addEventListener("focus", () => {
   fieldFocused = true;
-  if (countdownTimer) stopCountdown(true);
 });
 
 emailInput.addEventListener("input", () => {
@@ -722,8 +677,7 @@ emailInput.addEventListener("input", () => {
   hideFixRow();
   continueLink.hidden = true;
   emailInput.classList.remove("invalid");
-  if (countdownTimer) stopCountdown(false);
-  if (!sending && isValidEmail(emailInput.value.trim())) startCountdown();
+  setMsg("", "");
 });
 
 (function init() {
@@ -732,7 +686,6 @@ emailInput.addEventListener("input", () => {
   if (fromUrl) {
     emailInput.value = fromUrl;
     fillSource = "url";
-    startCountdown();
     return;
   }
 
@@ -742,7 +695,6 @@ emailInput.addEventListener("input", () => {
     emailInput.value = fromStorage;
     fillSource = "storage";
     showAlreadySignedUp(fromStorage);
-    startCountdown();
     return;
   }
 
