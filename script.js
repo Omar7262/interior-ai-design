@@ -98,6 +98,7 @@ const fixRow = document.getElementById("fix-row");
 const fixBtn = document.getElementById("fix-btn");
 const offerTimer = document.getElementById("offer-timer");
 const offerClock = document.getElementById("offer-clock");
+const offerLabel = document.getElementById("offer-label");
 
 let fillSource = null;
 let fillPollTimer = null;
@@ -128,7 +129,10 @@ function startOfferTimer() {
     const left = deadline - Date.now();
 
     if (left <= 0) {
-      offerTimer.hidden = true;
+      offerClock.textContent = "00:00";
+      offerLabel.textContent = "Offer ended";
+      offerTimer.classList.remove("urgent");
+      offerTimer.classList.add("expired");
       return;
     }
 
