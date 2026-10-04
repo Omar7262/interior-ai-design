@@ -206,7 +206,7 @@ input.invalid { border-color: #ff8f8f; box-shadow: 0 0 0 4px rgba(255, 143, 143,
   font-size: 15px;
   font-weight: 600;
   line-height: 1.45;
-  margin: 0;
+  margin: -14px 0 0;
   max-width: 400px;
 }
 
@@ -235,6 +235,20 @@ input.invalid { border-color: #ff8f8f; box-shadow: 0 0 0 4px rgba(255, 143, 143,
 
 
 
+
+.offer-timer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  max-width: 400px;
+  margin: 10px 0 0;
+  padding: 12px 18px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 10px;
+  background: linear-gradient(90deg, #1b2030 0%, #242c40 100%);
+  box-shadow: 0 8px 26px rgba(255, 59, 59, 0.25);
+}
 
 .offer-timer__label {
   font-size: 14px;
