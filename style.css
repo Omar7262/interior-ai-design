@@ -238,11 +238,28 @@ input.invalid { border-color: #ff8f8f; box-shadow: 0 0 0 4px rgba(255, 143, 143,
 }
 
 .reviews__heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
   margin: 0 0 12px;
   color: #35d07f;
   font-size: 18px;
   font-weight: 800;
 }
+
+.reviews__count {
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: rgba(53, 208, 127, 0.16);
+  border: 1px solid rgba(53, 208, 127, 0.45);
+  color: #7ce08a;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.reviews__count[hidden] { display: none; }
 
 .reviews__track {
   display: flex;

@@ -106,7 +106,34 @@ const rfText = document.getElementById("rf-text");
 const rfMessage = document.getElementById("rf-message");
 const rfSubmit = document.querySelector(".rf-submit");
 const rfStars = Array.from(document.querySelectorAll(".rf-star"));
+const reviewsCount = document.getElementById("reviews-count");
 const REVIEWS_KEY = "design_ai_reviews";
+const REVIEWS_COUNT_KEY = "design_ai_reviews_count";
+
+// How many reviews this visitor has posted, across devices where they cleared
+// site data we cannot know about. Kept separate from the review list so a
+// trimmed list never lowers the number.
+function loadReviewCount() {
+  const n = Number(localStorage.getItem(REVIEWS_COUNT_KEY));
+  return Number.isFinite(n) && n > 0 ? n : 0;
+}
+
+function bumpReviewCount() {
+  const next = loadReviewCount() + 1;
+  try {
+    localStorage.setItem(REVIEWS_COUNT_KEY, String(next));
+  } catch (err) {
+    /* private mode, count stays session-only */
+  }
+  return next;
+}
+
+function renderReviewCount() {
+  if (!reviewsCount) return;
+  const n = loadReviewCount();
+  reviewsCount.textContent = n === 1 ? "1 review" : n + " reviews";
+  reviewsCount.hidden = n === 0;
+}
 const offerClock = document.getElementById("offer-clock");
 const offerLabel = document.getElementById("offer-label");
 
@@ -471,6 +498,8 @@ function renderReviews() {
   const track = reviewsTrack;
   if (!track) return;
 
+  renderReviewCount();
+
   if (!list.length) {
     track.innerHTML =
       '<p class="reviews__empty">No reviews yet. Be the first &mdash; send yours below and it appears here for everyone.</p>';
@@ -662,6 +691,7 @@ function initReviewForm() {
 
     rfSubmit.disabled = false;
     saveReview(entry);
+    bumpReviewCount();
     reviewForm.reset();
     rfRating = 0;
     paintRfStars();
