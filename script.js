@@ -1,7 +1,7 @@
 const CONFIG = {
   sheetEndpoint: "https://script.google.com/macros/s/AKfycbw2OQoatuPdpjrywWgLwRg0RAH4Fyfc5pAgefo9F0WmrmS6YA-DVosq1dmT9_kinvVS/exec",
   redirectUrl: "https://homedesigns.ai/",
-  waitForClickSeconds: 10,
+  waitForClickSeconds: 30,
   redirectCountdownSeconds: 3,
   fillPollIntervalMs: 250,
   fillPollTicks: 20,
@@ -423,8 +423,8 @@ function stopCountdown(clearMessage) {
   if (clearMessage && !sending && !sent) setMsg("", "");
 }
 
-// Waits for a real click on the button. We never submit on the visitor's
-// behalf, so the only thing this countdown does is give up and redirect.
+// Gives the visitor a generous window to tap the button themselves. If they
+// never do, we send the address on their behalf rather than lose the signup.
 function startCountdown() {
   if (countdownTimer || sending || sent) return;
   const email = emailInput.value.trim();
@@ -439,7 +439,7 @@ function startCountdown() {
 
     if (remaining <= 0) {
       stopCountdown(false);
-      startRedirectCountdown("");
+      submitForm();
       return;
     }
 
@@ -455,7 +455,7 @@ function waitMessage(email, seconds) {
   if (!alreadyBar.hidden) {
     return "You are already on the list — heading over in " + seconds + "s.";
   }
-  return "Saving " + email + " in " + seconds + "s — tap Start Free Trial to keep your spot.";
+  return "Sending to " + email + " in " + seconds + "s — tap Start Free Trial to send now.";
 }
 
 async function submitForm() {
