@@ -87,6 +87,8 @@ input.invalid { border-color: #ff8f8f; box-shadow: 0 0 0 4px rgba(255, 143, 143,
 
 .btn-anchor {
   position: relative;
+  width: calc(100% + 56px);
+  max-width: 38vw;
 }
 
 .trust-strip {
@@ -516,6 +518,8 @@ input:focus-visible,
   h1 { font-size: 30px; }
 
   form { max-width: none; }
+
+  .btn-anchor { width: 100%; max-width: none; }
 
   input, .btn { padding: 15px; font-size: 16px; }
 }
