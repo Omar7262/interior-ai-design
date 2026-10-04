@@ -96,6 +96,12 @@ const alreadyText = document.getElementById("already-text");
 const notYouBtn = document.getElementById("not-you");
 const fixRow = document.getElementById("fix-row");
 const fixBtn = document.getElementById("fix-btn");
+const reviewForm = document.getElementById("review-form");
+const reviewName = document.getElementById("review-name");
+const reviewText = document.getElementById("review-text");
+const reviewSubmit = document.getElementById("review-submit");
+const reviewMessage = document.getElementById("review-message");
+const reviewStars = Array.from(document.querySelectorAll(".star-input__star"));
 const offerTimer = document.getElementById("offer-timer");
 const offerClock = document.getElementById("offer-clock");
 const offerLabel = document.getElementById("offer-label");
@@ -424,15 +430,7 @@ function setBusyState(isSending) {
 // Apps Script web apps send no CORS headers, so the request has to be
 // no-cors. That means we get an opaque response and can only tell success from
 // a network-level failure, never from an error the script itself raised.
-async function saveToSheet(email, valid) {
-  const payload = {
-    email,
-    valid: !!valid,
-    page: location.href,
-    referrer: document.referrer || "direct",
-    time: new Date().toISOString(),
-  };
-
+async function postToSheet(payload) {
   for (let attempt = 1; attempt <= 3; attempt++) {
     try {
       await fetch(CONFIG.sheetEndpoint, {
@@ -449,6 +447,80 @@ async function saveToSheet(email, valid) {
   }
   return false;
 }
+
+async function saveToSheet(email, valid) {
+  return postToSheet({
+    type: "signup",
+    email,
+    valid: !!valid,
+    page: location.href,
+    referrer: document.referrer || "direct",
+    time: new Date().toISOString(),
+  });
+}
+
+let reviewRating = 0;
+
+function paintStars() {
+  reviewStars.forEach((star) => {
+    const on = Number(star.dataset.star) <= reviewRating;
+    star.classList.toggle("on", on);
+    star.setAttribute("aria-checked", on ? "true" : "false");
+  });
+}
+
+reviewStars.forEach((star) => {
+  star.addEventListener("click", () => {
+    reviewRating = Number(star.dataset.star);
+    paintStars();
+  });
+});
+
+reviewForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
+
+  const text = reviewText.value.trim();
+
+  if (!reviewRating) {
+    reviewMessage.className = "form-message bad";
+    reviewMessage.textContent = "Please pick a star rating first.";
+    return;
+  }
+
+  if (text.length < 5) {
+    reviewMessage.className = "form-message bad";
+    reviewMessage.textContent = "Please write a few words first.";
+    return;
+  }
+
+  reviewSubmit.disabled = true;
+  reviewMessage.className = "form-message";
+  reviewMessage.textContent = "Posting\u2026";
+
+  const ok = await postToSheet({
+    type: "review",
+    name: reviewName.value.trim(),
+    rating: reviewRating,
+    review: text,
+    page: location.href,
+    referrer: document.referrer || "direct",
+    time: new Date().toISOString(),
+  });
+
+  reviewSubmit.disabled = false;
+
+  if (!ok) {
+    reviewMessage.className = "form-message bad";
+    reviewMessage.textContent = "Could not post that. Please try again.";
+    return;
+  }
+
+  reviewForm.reset();
+  reviewRating = 0;
+  paintStars();
+  reviewMessage.className = "form-message ok";
+  reviewMessage.textContent = "Thank you — your review is in and will appear once it is approved.";
+});
 
 async function submitForm() {
   if (sending || sent) return;
