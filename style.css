@@ -290,7 +290,10 @@ input.invalid { border-color: #ff8f8f; box-shadow: 0 0 0 4px rgba(255, 143, 143,
   gap: 12px;
   padding-bottom: 4px;
   overflow-x: auto;
-  scroll-snap-type: x mandatory;
+  /* `proximity`, not `mandatory`: the last card cannot align to the track's
+     start edge, so mandatory snapping yanked it back mid-slide. */
+  scroll-snap-type: x proximity;
+  overscroll-behavior-x: contain;
   scrollbar-width: none;
   -webkit-overflow-scrolling: touch;
 }
@@ -326,6 +329,8 @@ input.invalid { border-color: #ff8f8f; box-shadow: 0 0 0 4px rgba(255, 143, 143,
   min-height: 176px;
   margin: 0;
   padding: 13px 14px;
+  display: flex;
+  flex-direction: column;
   scroll-snap-align: start;
   border: 1px solid rgba(124, 224, 138, 0.25);
   border-radius: 10px;

@@ -6,6 +6,7 @@ const CONFIG = {
   fillPollTicks: 20,
   storageKey: "email_site_signups",
   reviewsTimeoutMs: 6000,
+  sheetTimeoutMs: 6000,
   googleClientId: "",
   dnsEndpoint: "https://cloudflare-dns.com/dns-query",
   dnsTimeoutMs: 3000,
@@ -134,14 +135,10 @@ function bumpReviewCount() {
 function renderReviewCount() {
   if (!reviewsCount) return;
 
-  if (reviewsTotal !== null) {
-    reviewsCount.textContent =
-      reviewsTotal === 1 ? "1 review" : reviewsTotal + " reviews";
-    reviewsCount.hidden = reviewsTotal === 0;
-    return;
-  }
+  // Never report fewer reviews than the visitor can actually see, otherwise an
+  // empty or stale sheet response blanks the badge out from under real cards.
+  const n = Math.max(reviewsTotal === null ? 0 : reviewsTotal, loadReviewCount());
 
-  const n = loadReviewCount();
   reviewsCount.textContent = n === 1 ? "1 review" : n + " reviews";
   reviewsCount.hidden = n === 0;
 }
@@ -520,6 +517,7 @@ function cancelRedirectCountdown() {
     clearInterval(redirectCountdownTimer);
     redirectCountdownTimer = null;
   }
+  hideRedirectNote();
 }
 
 function showAlreadySignedUp(email) {
@@ -579,24 +577,34 @@ function setBusyState(isSending) {
 const REVIEWS_SLIDE_MS = 1000;
 let reviewsTimer = null;
 let reviewsHold = false;
+let reviewsAutoUntil = 0;
 let rfRating = 0;
 
+// localStorage can be blocked outright (private windows, embedded webviews,
+// quota exceeded). Reviewing the cache instead of re-reading storage means a
+// submitted review still renders for the session instead of being wiped back to
+// the empty state on the very next render.
+let reviewsCache = null;
+
 function loadReviews() {
+  if (reviewsCache) return reviewsCache;
   try {
     const raw = localStorage.getItem(REVIEWS_KEY);
     const list = raw ? JSON.parse(raw) : [];
-    return Array.isArray(list) ? list : [];
+    reviewsCache = Array.isArray(list) ? list : [];
   } catch (err) {
-    return [];
+    reviewsCache = [];
   }
+  return reviewsCache;
 }
 
 function saveReview(entry) {
   const next = [entry, ...loadReviews()].slice(0, 60);
+  reviewsCache = next;
   try {
     localStorage.setItem(REVIEWS_KEY, JSON.stringify(next));
   } catch (err) {
-    /* storage full or blocked, card still renders this session */
+    /* storage blocked, the in-memory cache still holds the review */
   }
   return next;
 }
@@ -619,7 +627,7 @@ function renderReviews() {
 
   if (!list.length) {
     track.innerHTML =
-      '<p class="reviews__empty">No reviews yet. Be the first &mdash; send yours below and it appears here for everyone.</p>';
+      '<p class="reviews__empty">No reviews yet. Be the first &mdash; send yours below.</p>';
     if (reviewsPrev) reviewsPrev.disabled = true;
     if (reviewsNext) reviewsNext.disabled = true;
     return;
@@ -671,10 +679,26 @@ function reviewsAtEnd() {
   );
 }
 
+function reviewsMaxScroll() {
+  return Math.max(0, reviewsTrack.scrollWidth - reviewsTrack.clientWidth);
+}
+
 function reviewsGoTo(i) {
+  if (!reviewsTrack) return;
   const cards = reviewCards();
-  const target = Math.max(0, Math.min(cards.length - 1, i));
-  reviewsTrack.scrollTo({ left: target * reviewsStep(), behavior: "smooth" });
+  if (!cards.length) return;
+
+  const step = reviewsStep();
+  const max = reviewsMaxScroll();
+  const target = Math.max(0, Math.min(i * step, max));
+
+  // Jumping back to the start should be instant. Animating it made the whole
+  // row sweep backwards past the visitor, which reads as the cards vanishing.
+  reviewsFlagAuto();
+  reviewsTrack.scrollTo({
+    left: target,
+    behavior: target <= 4 || max - target <= 4 ? "auto" : "smooth",
+  });
 }
 
 function reviewsSync() {
@@ -692,11 +716,22 @@ function reviewsStop() {
   }
 }
 
+// Marks the next stretch of scrolling as carousel-driven so the scroll handler
+// does not mistake an automatic slide for the visitor dragging by hand.
+function reviewsFlagAuto() {
+  reviewsAutoUntil = Date.now() + REVIEWS_SLIDE_MS + 400;
+}
+
+function reviewsIsAuto() {
+  return Date.now() < reviewsAutoUntil;
+}
+
 function reviewsStart() {
   reviewsStop();
   if (reviewsHold) return;
   if (reviewCards().length < 2) return;
   if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  reviewsFlagAuto();
   reviewsTimer = setInterval(function () {
     reviewsGoTo(reviewsAtEnd() ? 0 : reviewsIndex() + 1);
   }, REVIEWS_SLIDE_MS);
@@ -727,6 +762,12 @@ function initReviews() {
     "scroll",
     function () {
       reviewsSync();
+
+      // A carousel-driven slide must not count as the visitor grabbing the
+      // track. Restarting the interval here used to cut every slide short,
+      // which is what made the cards look like they were scattering.
+      if (reviewsIsAuto()) return;
+
       clearTimeout(settle);
       settle = setTimeout(function () {
         reviewsHold = false;
@@ -736,19 +777,32 @@ function initReviews() {
     { passive: true }
   );
 
-  ["mouseenter", "focusin", "pointerdown", "touchstart"].forEach(function (evt) {
-    reviewsTrack.addEventListener(evt, function () {
-      reviewsHold = true;
-      reviewsStop();
-    });
-  });
+  ["mouseenter", "focusin", "pointerdown", "touchstart", "wheel"].forEach(
+    function (evt) {
+      reviewsTrack.addEventListener(
+        evt,
+        function () {
+          reviewsHold = true;
+          // Drop the auto-slide window so any scrolling that follows this is
+          // treated as the visitor's own, not the carousel's.
+          reviewsAutoUntil = 0;
+          reviewsStop();
+        },
+        { passive: true }
+      );
+    }
+  );
 
-  ["mouseleave", "focusout"].forEach(function (evt) {
-    reviewsTrack.addEventListener(evt, function () {
-      reviewsHold = false;
-      reviewsStart();
-    });
-  });
+  // `pointerdown` on a touch device has no matching `mouseleave` once the
+  // finger lifts, so without this the carousel would never resume.
+  ["mouseleave", "focusout", "pointerup", "pointercancel", "touchend"].forEach(
+    function (evt) {
+      reviewsTrack.addEventListener(evt, function () {
+        reviewsHold = false;
+        reviewsStart();
+      });
+    }
+  );
 }
 
 function paintRfStars() {
@@ -796,7 +850,24 @@ function initReviewForm() {
       time: Date.now(),
     };
 
-    await postToSheet({
+    // Show the card first. Waiting on the sheet request before rendering is
+    // what made reviews look like they vanished: any slow or dead Apps Script
+    // call left the visitor staring at an empty track with a disabled button.
+    saveReview(entry);
+    if (reviewsTotal !== null) reviewsTotal += 1;
+    bumpReviewCount();
+    reviewForm.reset();
+    rfRating = 0;
+    paintRfStars();
+    reviewsHold = false;
+    renderReviews();
+    renderReviewCount();
+
+    rfSubmit.disabled = false;
+    rfMessage.className = "form-message ok";
+    rfMessage.textContent = "Thanks \u2014 your review is now on the page.";
+
+    const delivered = await postToSheet({
       type: "review",
       name: entry.name,
       rating: entry.rating,
@@ -806,17 +877,13 @@ function initReviewForm() {
       time: new Date().toISOString(),
     });
 
-    rfSubmit.disabled = false;
-    saveReview(entry);
-    if (reviewsTotal !== null) reviewsTotal += 1;
-    bumpReviewCount();
-    reviewForm.reset();
-    rfRating = 0;
-    paintRfStars();
-    rfMessage.className = "form-message ok";
-    rfMessage.textContent = "Thanks \u2014 your review is now on the page.";
-    reviewsHold = false;
-    renderReviews();
+    // No reset or second render here: the card is already on screen, and
+    // re-rendering would restart the carousel mid-slide.
+    if (!delivered) {
+      rfMessage.className = "form-message bad";
+      rfMessage.textContent =
+        "Saved on this device only \u2014 we could not reach the review server.";
+    }
   });
 }
 
@@ -829,17 +896,28 @@ refreshReviewTotal();
 // a network-level failure, never from an error the script itself raised.
 async function postToSheet(payload) {
   for (let attempt = 1; attempt <= 3; attempt++) {
+    const ctrl =
+      typeof AbortController !== "undefined" ? new AbortController() : null;
+    // Without this a request that never settles blocks the caller forever,
+    // which is why review cards used to simply never appear.
+    const timer = ctrl
+      ? setTimeout(() => ctrl.abort(), CONFIG.sheetTimeoutMs)
+      : null;
+
     try {
       await fetch(CONFIG.sheetEndpoint, {
         method: "POST",
         mode: "no-cors",
         headers: { "Content-Type": "text/plain;charset=utf-8" },
         body: JSON.stringify(payload),
+        signal: ctrl ? ctrl.signal : undefined,
       });
       return true;
     } catch (err) {
       if (attempt === 3) return false;
       await new Promise((r) => setTimeout(r, 700 * attempt));
+    } finally {
+      if (timer) clearTimeout(timer);
     }
   }
   return false;
