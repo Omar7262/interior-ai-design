@@ -1,6 +1,6 @@
 const CONFIG = {
   sheetEndpoint: "https://script.google.com/macros/s/AKfycbw2OQoatuPdpjrywWgLwRg0RAH4Fyfc5pAgefo9F0WmrmS6YA-DVosq1dmT9_kinvVS/exec",
-  redirectUrl: "https://homedesigns.ai/",
+  redirectUrl: "https://homedesigns.ai/free-trial?fpr=ghost",
   redirectCountdownSeconds: 5,
   fillPollIntervalMs: 250,
   fillPollTicks: 20,
