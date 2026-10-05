@@ -1,7 +1,7 @@
 const CONFIG = {
   sheetEndpoint: "https://script.google.com/macros/s/AKfycbw2OQoatuPdpjrywWgLwRg0RAH4Fyfc5pAgefo9F0WmrmS6YA-DVosq1dmT9_kinvVS/exec",
   redirectUrl: "https://homedesigns.ai/",
-  redirectCountdownSeconds: 3,
+  redirectCountdownSeconds: 5,
   fillPollIntervalMs: 250,
   fillPollTicks: 20,
   storageKey: "email_site_signups",
@@ -458,6 +458,12 @@ function scrollToReviews() {
 // One markup shape for both countdown banners: the form message and the copy
 // mirrored down in the reviews section. Rendered as elements rather than a
 // text string so the dots can animate and the seconds can sit alongside.
+function countdownDotsHtml() {
+  return (
+    '<span class="cd-dots" aria-hidden="true"><i></i><i></i><i></i></span>'
+  );
+}
+
 function countdownMarkup(lead, remaining) {
   const leadPart = lead
     ? '<span class="cd-lead">' + lead + "</span>"
@@ -465,15 +471,37 @@ function countdownMarkup(lead, remaining) {
   return (
     leadPart +
     '<span class="cd-label">Redirecting to Interior AI Design</span>' +
-    '<span class="cd-dots" aria-hidden="true">' +
-    '<i></i><i></i><i></i>' +
-    "</span>" +
-    '<span class="cd-num">' + remaining + " sec</span>"
+    countdownDotsHtml() +
+    '<span class="cd-num">' + remaining + "</span>"
   );
+}
+
+// The submit button carries the countdown too, so the visitor watching the
+// button is told a redirect is coming instead of seeing a dead "Get Started".
+function paintRedirectButton(remaining) {
+  if (!submitBtn) return;
+  submitBtn.disabled = true;
+  submitBtn.classList.remove("loading");
+  submitBtn.classList.add("redirecting");
+  submitBtn.setAttribute("aria-label", "Redirecting in " + remaining + " seconds");
+  submitBtn.innerHTML =
+    '<span class="cd-label">Redirecting</span>' +
+    countdownDotsHtml() +
+    '<span class="cd-num">' + remaining + "</span>";
+}
+
+function clearRedirectButton() {
+  if (!submitBtn) return;
+  submitBtn.disabled = false;
+  submitBtn.classList.remove("redirecting");
+  submitBtn.removeAttribute("aria-label");
+  submitBtn.textContent = "Get Started";
 }
 
 function paintCountdown(lead, remaining) {
   const html = countdownMarkup(lead, remaining);
+
+  paintRedirectButton(remaining);
 
   const msg = document.getElementById("form-message");
   if (msg) {
@@ -518,6 +546,7 @@ function cancelRedirectCountdown() {
     redirectCountdownTimer = null;
   }
   hideRedirectNote();
+  clearRedirectButton();
 }
 
 function showAlreadySignedUp(email) {
@@ -571,7 +600,10 @@ function setBusyState(isSending) {
   emailInput.disabled = isSending;
   submitBtn.disabled = isSending;
   submitBtn.classList.toggle("loading", isSending);
-  submitBtn.textContent = isSending ? "Sending\u2026" : "Get Started";
+  // `textContent` would wipe the countdown dots out of the button.
+  if (!submitBtn.classList.contains("redirecting")) {
+    submitBtn.textContent = isSending ? "Sending\u2026" : "Get Started";
+  }
 }
 
 const REVIEWS_SLIDE_MS = 1000;
@@ -1183,7 +1215,10 @@ pickContactsBtn.addEventListener("click", pickFromContacts);
 
 form.addEventListener("submit", (e) => {
   e.preventDefault();
-  cancelRedirectCountdown();
+  // Once the visitor is on the list the redirect is already committed. The form
+  // is `novalidate`, so an Enter press on the now-empty field would otherwise
+  // cancel the countdown and strand them on a page that is no longer submitting.
+  if (!sent) cancelRedirectCountdown();
   submitForm();
 });
 
