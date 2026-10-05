@@ -13,6 +13,10 @@ const CONFIG = {
   // Disposable/spam domain lookup, resolved by Apps Script. The browser never
   // downloads the 3.2MB list itself; it only asks for one verdict.
   validateTimeoutMs: 4000,
+  // Real-time SMTP mailbox check. This is a paid provider that actually probes
+  // the mail server, so it is slower than the list lookup and can be slower than
+  // we want to make someone stare at a button. Cached on blur, decisive on submit.
+  verifyTimeoutMs: 9000,
 };
 
 // Domains people reach for by misspelling a provider. Mapped to what they
@@ -253,11 +257,29 @@ function hideFixRow() {
 function showEmailProblem(email, problem) {
   emailInput.classList.add("invalid");
 
-  if (problem.reason === "typo") {
-    fixSuggestion = email.split("@")[0] + "@" + problem.suggestion;
-    fixBtn.textContent = "Use " + fixSuggestion + " instead";
-    fixRow.hidden = false;
-    setMsg(problem.domain + " looks like a typo of " + problem.suggestion + ".", "bad");
+  // Both a typo and a provider-suggested correction get the one-click fix, since
+  // in each case the visitor only needs to accept the address we worked out.
+  if (problem.reason === "typo" || problem.reason === "invalid") {
+    const suggestion = problem.suggestion || "";
+    if (suggestion) {
+      // The typo map suggests a bare domain, while ZeroBounce's did_you_mean
+      // comes back as a whole address. Only the former needs the local part
+      // re-attached, or the fix would read "sam@sam.smith@gmail.com".
+      fixSuggestion = suggestion.indexOf("@") !== -1
+        ? suggestion
+        : email.split("@")[0] + "@" + suggestion;
+      fixBtn.textContent = "Use " + fixSuggestion + " instead";
+      fixRow.hidden = false;
+    } else {
+      hideFixRow();
+    }
+
+    setMsg(
+      problem.reason === "typo"
+        ? problem.domain + " looks like a typo of " + problem.suggestion + "."
+        : "That mailbox does not seem to exist. Please check the address.",
+      "bad"
+    );
     return;
   }
 
@@ -328,10 +350,43 @@ function localEmailProblem(email) {
 }
 
 const remoteVerdictCache = new Map();
+const verifyCache = new Map();
+
+// Single fetch helper with a hard timeout, shared by the two lookups below.
+async function fetchJsonWithTimeout(url, timeoutMs) {
+  const ctrl = typeof AbortController !== "undefined" ? new AbortController() : null;
+  const timer = ctrl ? setTimeout(() => ctrl.abort(), timeoutMs) : null;
+
+  try {
+    const res = await fetch(url, {
+      method: "GET",
+      headers: { Accept: "application/json" },
+      signal: ctrl ? ctrl.signal : undefined,
+    });
+    if (!res || !res.ok) return null;
+    return await res.json();
+  } catch (err) {
+    // Blocked by CORS, offline, or the script is unreachable. Stay silent so
+    // the visitor is not punished for our infrastructure being down.
+    return null;
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
+function verdictUrl_(params) {
+  return (
+    CONFIG.sheetEndpoint +
+    "?" +
+    params +
+    "&v=" +
+    encodeURIComponent(String(Date.now()))
+  );
+}
 
 // Asks Apps Script whether the domain is on the disposable/spam list. The list
 // itself (125k+ domains) stays on the server, so this moves one boolean, not
-// megabytes, and the visitor's address is never handed to a third party.
+// megabytes.
 //
 // Fails open on purpose: a timeout or a server error means "no opinion", not
 // "reject", so a flaky network can never cost a genuine signup.
@@ -343,40 +398,46 @@ async function remoteDomainProblem(email) {
     return remoteVerdictCache.get(domain);
   }
 
-  const url =
-    CONFIG.sheetEndpoint +
-    "?action=validate&domain=" +
-    encodeURIComponent(domain) +
-    "&v=" +
-    encodeURIComponent(String(Date.now()));
+  const data = await fetchJsonWithTimeout(
+    verdictUrl_("action=validate&domain=" + encodeURIComponent(domain)),
+    CONFIG.validateTimeoutMs
+  );
+  if (!data || typeof data.disposable !== "boolean") return null;
 
-  const ctrl =
-    typeof AbortController !== "undefined" ? new AbortController() : null;
-  const timer = ctrl
-    ? setTimeout(() => ctrl.abort(), CONFIG.validateTimeoutMs)
-    : null;
+  const problem = data.disposable ? { reason: "disposable", domain } : null;
+  remoteVerdictCache.set(domain, problem);
+  return problem;
+}
 
-  try {
-    const res = await fetch(url, {
-      method: "GET",
-      headers: { Accept: "application/json" },
-      signal: ctrl ? ctrl.signal : undefined,
-    });
-    if (!res || !res.ok) return null;
+/**
+ * Real-time SMTP mailbox check. This is the only check that can tell whether a
+ * specific mailbox exists rather than just whether its domain can receive mail.
+ *
+ * Unlike the list lookup this one is awaited on submit, because "the mailbox
+ * does not exist" is exactly the case the visitor is waiting to be told about.
+ * Anything short of a confident rejection is passed through.
+ */
+async function remoteVerifyProblem(email) {
+  const address = String(email || "").trim().toLowerCase();
+  if (!address) return null;
 
-    const data = await res.json();
-    if (!data || typeof data.disposable !== "boolean") return null;
+  if (verifyCache.has(address)) return verifyCache.get(address);
 
-    const problem = data.disposable ? { reason: "disposable", domain } : null;
-    remoteVerdictCache.set(domain, problem);
-    return problem;
-  } catch (err) {
-    // Blocked by CORS, offline, or the script is unreachable. Stay silent so
-    // the visitor is not punished for our infrastructure being down.
-    return null;
-  } finally {
-    if (timer) clearTimeout(timer);
-  }
+  const data = await fetchJsonWithTimeout(
+    verdictUrl_("action=verify&email=" + encodeURIComponent(address)),
+    CONFIG.verifyTimeoutMs
+  );
+
+  // No key configured yet, or the provider is unreachable: no opinion.
+  if (!data || data.configured !== true || data.block !== true) return null;
+
+  const problem = {
+    reason: "invalid",
+    domain: domainOf(address),
+    suggestion: data.suggestion || "",
+  };
+  verifyCache.set(address, problem);
+  return problem;
 }
 
 // Runs after the instant local checks, so the one-click typo fix is always
@@ -391,6 +452,11 @@ function queueRemoteCheck(email) {
   if (DISPOSABLE_DOMAINS.has(domain)) return;
 
   const token = (remoteVerdictToken = (remoteVerdictToken || 0) + 1);
+
+  // Warm the mailbox check too. It is far slower than the list lookup, so
+  // starting it here means the submit usually finds the answer already waiting
+  // instead of making the visitor watch the button for several more seconds.
+  remoteVerifyProblem(email);
 
   remoteDomainProblem(email).then(function (problem) {
     // The visitor may have retyped or submitted while this was in flight.
@@ -1102,6 +1168,20 @@ async function submitForm() {
     sending = false;
     setBusyState(false);
     showEmailProblem(email, dnsProblem);
+    return;
+  }
+
+  setMsg("Confirming mailbox\u2026");
+
+  // The decisive check: does this specific mailbox exist, rather than just its
+  // domain? Awaited here on purpose. A slow rejection is better than handing
+  // someone a subscription they can never read, and the server re-checks anyway.
+  const verifyProblem = await remoteVerifyProblem(email);
+
+  if (verifyProblem) {
+    sending = false;
+    setBusyState(false);
+    showEmailProblem(email, verifyProblem);
     return;
   }
 
