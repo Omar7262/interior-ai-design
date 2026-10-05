@@ -303,6 +303,22 @@ function saveSignup_(d) {
 
   var reason = String(d.reason || "");
 
+  var sheet = sheetOrCreate_("Sheet1");
+  ensureHeader_(sheet, SIGNUP_HEADERS);
+
+  // Dedupe BEFORE verifying. Every verification costs a credit, and a repeat
+  // submission of an address already on the list tells us nothing new, so this
+  // order is what stops double-clicks and re-submits from draining the quota.
+  var last = sheet.getLastRow();
+  if (last > 1) {
+    var existing = sheet.getRange(2, EMAIL_COL, last - 1, 1).getValues();
+    for (var i = 0; i < existing.length; i++) {
+      if (String(existing[i][0]).trim().toLowerCase() === email) {
+        return { ok: true, duplicate: true };
+      }
+    }
+  }
+
   // Authoritative gate. The frontend check is a courtesy for the visitor and can
   // be bypassed by posting straight to the endpoint, so the decision that counts
   // is made here. `verifyEmail_` only returns block:true for addresses it is
@@ -330,19 +346,6 @@ function saveSignup_(d) {
       if (isDisposable_(email.split("@").pop())) reason = "disposable";
     } catch (err) {
       // Never fail a signup because the lookup is down.
-    }
-  }
-
-  var sheet = sheetOrCreate_("Sheet1");
-  ensureHeader_(sheet, SIGNUP_HEADERS);
-
-  var last = sheet.getLastRow();
-  if (last > 1) {
-    var existing = sheet.getRange(2, EMAIL_COL, last - 1, 1).getValues();
-    for (var i = 0; i < existing.length; i++) {
-      if (String(existing[i][0]).trim().toLowerCase() === email) {
-        return { ok: true, duplicate: true };
-      }
     }
   }
 
