@@ -10,6 +10,9 @@ const CONFIG = {
   googleClientId: "",
   dnsEndpoint: "https://cloudflare-dns.com/dns-query",
   dnsTimeoutMs: 3000,
+  // Disposable/spam domain lookup, resolved by Apps Script. The browser never
+  // downloads the 3.2MB list itself; it only asks for one verdict.
+  validateTimeoutMs: 4000,
 };
 
 // Domains people reach for by misspelling a provider. Mapped to what they
@@ -238,6 +241,8 @@ function startOfferTimer() {
 
 let sent = false;
 let fixSuggestion = null;
+// Guards against a slow remote verdict landing after the visitor retyped or submitted.
+let remoteVerdictToken = 0;
 
 function hideFixRow() {
   fixRow.hidden = true;
@@ -320,6 +325,84 @@ function localEmailProblem(email) {
   }
 
   return null;
+}
+
+const remoteVerdictCache = new Map();
+
+// Asks Apps Script whether the domain is on the disposable/spam list. The list
+// itself (125k+ domains) stays on the server, so this moves one boolean, not
+// megabytes, and the visitor's address is never handed to a third party.
+//
+// Fails open on purpose: a timeout or a server error means "no opinion", not
+// "reject", so a flaky network can never cost a genuine signup.
+async function remoteDomainProblem(email) {
+  const domain = domainOf(email);
+  if (!domain) return null;
+
+  if (remoteVerdictCache.has(domain)) {
+    return remoteVerdictCache.get(domain);
+  }
+
+  const url =
+    CONFIG.sheetEndpoint +
+    "?action=validate&domain=" +
+    encodeURIComponent(domain) +
+    "&v=" +
+    encodeURIComponent(String(Date.now()));
+
+  const ctrl =
+    typeof AbortController !== "undefined" ? new AbortController() : null;
+  const timer = ctrl
+    ? setTimeout(() => ctrl.abort(), CONFIG.validateTimeoutMs)
+    : null;
+
+  try {
+    const res = await fetch(url, {
+      method: "GET",
+      headers: { Accept: "application/json" },
+      signal: ctrl ? ctrl.signal : undefined,
+    });
+    if (!res || !res.ok) return null;
+
+    const data = await res.json();
+    if (!data || typeof data.disposable !== "boolean") return null;
+
+    const problem = data.disposable ? { reason: "disposable", domain } : null;
+    remoteVerdictCache.set(domain, problem);
+    return problem;
+  } catch (err) {
+    // Blocked by CORS, offline, or the script is unreachable. Stay silent so
+    // the visitor is not punished for our infrastructure being down.
+    return null;
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
+// Runs after the instant local checks, so the one-click typo fix is always
+// immediate and this only ever adds a slow verdict for genuinely unknown
+// domains. Never blocks the submit path.
+function queueRemoteCheck(email) {
+  const local = localEmailProblem(email);
+  if (local) return;
+
+  const domain = domainOf(email);
+  if (!domain || remoteVerdictCache.has(domain)) return;
+  if (DISPOSABLE_DOMAINS.has(domain)) return;
+
+  const token = (remoteVerdictToken = (remoteVerdictToken || 0) + 1);
+
+  remoteDomainProblem(email).then(function (problem) {
+    // The visitor may have retyped or submitted while this was in flight.
+    if (token !== remoteVerdictToken) return;
+    if (!problem) return;
+    if (sending || sent) return;
+    if (domainOf(emailInput.value.trim()) !== domain) return;
+    if (localEmailProblem(emailInput.value.trim())) return;
+
+    showEmailProblem(email, problem);
+    emailInput.classList.add("invalid");
+  });
 }
 
 const dnsCache = new Map();
@@ -976,11 +1059,14 @@ async function postToSheet(payload) {
   return false;
 }
 
-async function saveToSheet(email, valid) {
+// `reason` records why an address looked suspicious, so the sheet shows the
+// verdict instead of leaving you to guess after the fact.
+async function saveToSheet(email, valid, reason) {
   return postToSheet({
     type: "signup",
     email,
     valid: !!valid,
+    reason: reason || "",
     page: location.href,
     referrer: document.referrer || "direct",
     time: new Date().toISOString(),
@@ -1021,7 +1107,12 @@ async function submitForm() {
 
   setMsg("", "");
 
-  const ok = await saveToSheet(email, true);
+  // Local problems already returned above, so the only verdict that can still be
+  // known here is the remote one, if it landed before they clicked submit.
+  const remoteVerdict = remoteVerdictCache.get(domainOf(email));
+  const reason = remoteVerdict && remoteVerdict.reason ? remoteVerdict.reason : "";
+
+  const ok = await saveToSheet(email, true, reason);
 
   sending = false;
   setBusyState(false);
@@ -1245,6 +1336,15 @@ form.addEventListener("submit", (e) => {
 
 emailInput.addEventListener("focus", () => {
   fieldFocused = true;
+});
+
+// Fires on blur so the lookup overlaps with the visitor reaching for the button
+// instead of stalling the submit. `queueRemoteCheck` never throws or blocks.
+emailInput.addEventListener("blur", () => {
+  if (sent || sending) return;
+  const email = emailInput.value.trim();
+  if (!email || !emailInput.validity.valid || !isValidEmail(email)) return;
+  queueRemoteCheck(email);
 });
 
 emailInput.addEventListener("input", () => {
