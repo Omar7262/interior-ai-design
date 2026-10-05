@@ -464,6 +464,16 @@ function countdownDotsHtml() {
   );
 }
 
+function redirectButtonHtml(remaining) {
+  const num =
+    typeof remaining === "number"
+      ? '<span class="cd-num">' + remaining + "</span>"
+      : "";
+  return (
+    '<span class="cd-label">Redirecting</span>' + countdownDotsHtml() + num
+  );
+}
+
 function countdownMarkup(lead, remaining) {
   const leadPart = lead
     ? '<span class="cd-lead">' + lead + "</span>"
@@ -483,11 +493,14 @@ function paintRedirectButton(remaining) {
   submitBtn.disabled = true;
   submitBtn.classList.remove("loading");
   submitBtn.classList.add("redirecting");
-  submitBtn.setAttribute("aria-label", "Redirecting in " + remaining + " seconds");
-  submitBtn.innerHTML =
-    '<span class="cd-label">Redirecting</span>' +
-    countdownDotsHtml() +
-    '<span class="cd-num">' + remaining + "</span>";
+  submitBtn.setAttribute(
+    "aria-label",
+    "Redirecting" +
+      (typeof remaining === "number"
+        ? " in " + remaining + " seconds"
+        : "")
+  );
+  submitBtn.innerHTML = redirectButtonHtml(remaining);
 }
 
 function clearRedirectButton() {
@@ -599,11 +612,19 @@ function setMsg(text, type) {
 function setBusyState(isSending) {
   emailInput.disabled = isSending;
   submitBtn.disabled = isSending;
-  submitBtn.classList.toggle("loading", isSending);
-  // `textContent` would wipe the countdown dots out of the button.
-  if (!submitBtn.classList.contains("redirecting")) {
-    submitBtn.textContent = isSending ? "Sending\u2026" : "Get Started";
+
+  // The visitor pressed the button, so the redirect is what happens next. Saying
+  // "Redirecting" right away keeps the DNS check and the sheet round trip from
+  // parking the button on "Sending..." for several seconds first. The number
+  // only appears once the countdown itself begins.
+  if (isSending) {
+    paintRedirectButton();
+    return;
   }
+
+  // A failed attempt must put the button back, otherwise it stays stuck on
+  // "Redirecting" forever while an error sits underneath it.
+  clearRedirectButton();
 }
 
 const REVIEWS_SLIDE_MS = 1000;
