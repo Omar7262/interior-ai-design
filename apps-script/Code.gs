@@ -9,13 +9,14 @@
  *   3. Click Deploy, approve the permissions Google asks for.
  *   4. Copy the /exec URL and send it to whoever updates the website.
  *
- * No configuration needed. The first signup creates a spreadsheet called
- * "Interior AI Design Signups" in your Drive, and every signup also emails you.
+ * Writes to the sheet named in SHEET_ID below. If that sheet ever goes away,
+ * a new one is created automatically. Every signup also emails you.
  */
 
 var BOOK_NAME = "Interior AI Design Signups";
 var SHEET_NAME = "Sheet1";
 var HEADERS = ["Email", "Valid", "Reason", "Page", "Referrer", "Time"];
+var SHEET_ID = "13DqWeIXO-cF_drix8vIVR8ohh1gLHTD4H_XWsQ1KmU0";
 var PROP_KEY = "SIGNUP_SHEET_ID";
 
 function doGet(e) {
@@ -105,7 +106,7 @@ function notify_(email, reason) {
 /** Returns the signup sheet, creating it on first use. */
 function sheet_() {
   var props = PropertiesService.getScriptProperties();
-  var id = props.getProperty(PROP_KEY);
+  var id = SHEET_ID || props.getProperty(PROP_KEY);
   var ss = null;
 
   if (id) {
