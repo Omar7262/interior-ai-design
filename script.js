@@ -1,5 +1,5 @@
 const CONFIG = {
-  sheetEndpoint: "https://script.google.com/macros/s/AKfycbyF2ZkQW_EjD7GRIa4DrxRh2S7nv08BiejuYJ64KVhb4KEl7AEpYwZ_1P_1F87RAAgDww/exec",
+  sheetEndpoint: "https://script.google.com/macros/s/AKfycbwY9NEfaUTtGZlIHjU6ph9WS3Z6TXud7x1rGXlDeX72M6krVRWMPysqNjH3Z14zReSG5Q/exec",
   redirectUrl: "https://go.planner5d.com/click?pid=2531&offer_id=43&sub1=yourclickid&sub2=your_sub_pub_id&sub3=any_side_info",
   redirectCountdownSeconds: 5,
   fillPollIntervalMs: 250,
